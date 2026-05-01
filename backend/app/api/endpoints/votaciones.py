@@ -1,0 +1,175 @@
+from datetime import datetime
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
+from app.core.security import get_current_user, require_roles
+from app.core.supabase import table, upload_to_storage
+from app.schemas.schemas import VotacionIn, VotoIn
+
+router = APIRouter(prefix="/votaciones", tags=["votaciones"])
+
+def _parse_election_option(option: str) -> dict[str, str]:
+    parts = option.split("|")
+    if not parts or parts[0] != "election":
+        return {}
+    values = {}
+    for part in parts[1:]:
+        key, _, value = part.partition("=")
+        values[key] = value
+    return values
+
+def _is_election(votacion: dict) -> bool:
+    return any(_parse_election_option(option) for option in votacion.get("opciones") or [])
+
+def _add_stats(votacion: dict) -> dict:
+    votos = table("votos").select("opcion").eq("votacion_id", votacion["id"]).execute().data or []
+    conteo = {}
+    for vt in votos:
+        opcion = vt["opcion"]
+        conteo[opcion] = conteo.get(opcion, 0) + 1
+    total = len(votos)
+    votacion["total_votos"] = total
+    opciones = votacion.get("opciones") or []
+    votacion["opciones_stats"] = [
+        {
+            "opcion": opcion,
+            "count": conteo.get(opcion, 0),
+            "percentage": round((conteo.get(opcion, 0) / total) * 100, 1) if total > 0 else 0
+        }
+        for opcion in opciones
+    ]
+    return votacion
+
+def _finish_election(votacion_id: str) -> dict:
+    votacion = table("votaciones").select("*").eq("id", votacion_id).single().execute().data
+    if not votacion:
+        raise HTTPException(status_code=404, detail="Votacion no encontrada")
+    if not _is_election(votacion):
+        raise HTTPException(status_code=400, detail="Esta votacion no es una eleccion")
+    
+    votos = table("votos").select("opcion").eq("votacion_id", votacion_id).execute().data or []
+    if not votos:
+        raise HTTPException(status_code=400, detail="No hay votos registrados")
+    
+    conteo: dict[str, int] = {}
+    for voto in votos:
+        opcion = voto.get("opcion")
+        conteo[opcion] = conteo.get(opcion, 0) + 1
+    
+    max_votos = max(conteo.values())
+    ganadores = [opcion for opcion, total in conteo.items() if total == max_votos]
+    if len(ganadores) > 1:
+        raise HTTPException(status_code=409, detail="La eleccion termino empatada")
+    
+    ganador = ganadores[0]
+    datos = _parse_election_option(ganador)
+    usuario_id = datos.get("user")
+    rol = datos.get("role")
+    if rol not in {"directiva", "tesorero", "admin", "vecino"} or not usuario_id:
+        raise HTTPException(status_code=400, detail="Opcion ganadora invalida")
+    
+    usuario = table("usuarios").update({"rol": rol, "estado": "aprobado", "activo": True}).eq("id", usuario_id).execute().data[0]
+    table("votaciones").update({"estado": "cerrada"}).eq("id", votacion_id).execute()
+    return {"ganador": usuario, "rol_asignado": rol, "votos": max_votos}
+
+@router.get("")
+def list_votaciones(user: dict = Depends(get_current_user)):
+    votaciones = table("votaciones").select("*").order("created_at", desc=True).execute().data
+    for v in votaciones:
+        _add_stats(v)
+    return votaciones
+
+@router.post("/form")
+async def create_votacion_form(
+    titulo: str = Form(...),
+    descripcion: str = Form(None),
+    fecha_inicio: str = Form(...),
+    fecha_fin: str = Form(...),
+    opciones: str = Form(...),
+    estado: str = Form("activa"),
+    imagen: UploadFile | None = File(None),
+    user: dict = Depends(require_roles("admin", "directiva"))
+):
+    # Parsear fechas: acepta ISO format
+    try:
+        fecha_inicio_dt = datetime.fromisoformat(fecha_inicio.replace('Z', '+00:00'))
+        fecha_fin_dt = datetime.fromisoformat(fecha_fin.replace('Z', '+00:00'))
+    except (ValueError, AttributeError) as e:
+        raise HTTPException(status_code=400, detail=f"Formato de fecha inválido. Recibido: {fecha_inicio}, {fecha_fin}. Error: {str(e)}")
+    
+    data = {
+        "titulo": titulo,
+        "descripcion": descripcion or "",
+        "fecha_inicio": fecha_inicio_dt.isoformat(),
+        "fecha_fin": fecha_fin_dt.isoformat(),
+        "opciones": [opcion.strip() for opcion in opciones.split(",") if opcion.strip()] if opciones else [],
+        "estado": estado,
+        "creado_por": user["id"]
+    }
+    if imagen:
+        url = upload_to_storage(imagen, "neighborhood-images")
+        if url:
+            data["imagen_url"] = url
+    try:
+        return table("votaciones").insert(data).execute().data[0]
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Error al guardar votacion: {str(e)}")
+
+
+@router.patch("/{votacion_id}/form")
+async def update_votacion_form(
+    votacion_id: str,
+    titulo: str = Form(...),
+    descripcion: str = Form(None),
+    fecha_inicio: str = Form(...),
+    fecha_fin: str = Form(...),
+    opciones: str = Form(...),
+    estado: str = Form("activa"),
+    imagen: UploadFile | None = File(None),
+    user: dict = Depends(require_roles("admin"))
+):
+    # Parsear fechas: acepta ISO format
+    try:
+        fecha_inicio_dt = datetime.fromisoformat(fecha_inicio.replace('Z', '+00:00'))
+        fecha_fin_dt = datetime.fromisoformat(fecha_fin.replace('Z', '+00:00'))
+    except (ValueError, AttributeError) as e:
+        raise HTTPException(status_code=400, detail=f"Formato de fecha inválido: {str(e)}")
+    
+    data = {
+        "titulo": titulo,
+        "descripcion": descripcion,
+        "fecha_inicio": fecha_inicio_dt.isoformat(),
+        "fecha_fin": fecha_fin_dt.isoformat(),
+        "opciones": [opcion.strip() for opcion in opciones.split(",") if opcion.strip()] if opciones else [],
+        "estado": estado
+    }
+    if imagen:
+        url = upload_to_storage(imagen, "neighborhood-images")
+        if url:
+            data["imagen_url"] = url
+    return table("votaciones").update(data).eq("id", votacion_id).execute().data[0]
+
+@router.delete("/{votacion_id}")
+def delete_votacion(votacion_id: str, user: dict = Depends(require_roles("admin"))):
+    return table("votaciones").delete().eq("id", votacion_id).execute().data[0]
+
+@router.post("/{votacion_id}/votar")
+def votar(votacion_id: str, payload: VotoIn, user: dict = Depends(get_current_user)):
+    votacion = table("votaciones").select("estado").eq("id", votacion_id).single().execute().data
+    if not votacion:
+        raise HTTPException(status_code=404, detail="Votacion no encontrada")
+    if votacion.get("estado") != "activa":
+        raise HTTPException(status_code=400, detail="La votacion no esta activa")
+    voted = table("votos").select("id").eq("votacion_id", votacion_id).eq("usuario_id", user["id"]).execute()
+    if voted.data:
+        raise HTTPException(status_code=409, detail="Ya votaste en esta votación")
+    return table("votos").insert({"votacion_id": votacion_id, "usuario_id": user["id"], "opcion": payload.opcion}).execute().data[0]
+
+@router.post("/{votacion_id}/finalizar-eleccion")
+def finalizar_eleccion(votacion_id: str, user: dict = Depends(require_roles("admin"))):
+    return _finish_election(votacion_id)
+
+@router.get("/{votacion_id}/resultados")
+def resultados(votacion_id: str, user: dict = Depends(get_current_user)):
+    votacion = table("votaciones").select("*").eq("id", votacion_id).single().execute().data
+    if not votacion:
+        raise HTTPException(status_code=404, detail="Votacion no encontrada")
+    return _add_stats(votacion)

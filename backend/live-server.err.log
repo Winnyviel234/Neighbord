@@ -1,0 +1,32 @@
+INFO:     Started server process [16604]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+DEBUG:    = connection is CONNECTING
+DEBUG:    < GET /api/ws/live HTTP/1.1
+DEBUG:    < host: 127.0.0.1:8000
+DEBUG:    < connection: Upgrade
+DEBUG:    < pragma: no-cache
+DEBUG:    < cache-control: no-cache
+DEBUG:    < user-agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36
+DEBUG:    < upgrade: websocket
+DEBUG:    < origin: http://localhost:5173
+DEBUG:    < sec-websocket-version: 13
+DEBUG:    < accept-encoding: gzip, deflate, br, zstd
+DEBUG:    < accept-language: es-419,es;q=0.9
+DEBUG:    < sec-websocket-key: 01t7dVcPFcNfcdWAQdokPQ==
+DEBUG:    < sec-websocket-extensions: permessage-deflate; client_max_window_bits
+INFO:     127.0.0.1:50211 - "WebSocket /api/ws/live" [accepted]
+DEBUG:    > HTTP/1.1 101 Switching Protocols
+DEBUG:    > Upgrade: websocket
+DEBUG:    > Connection: Upgrade
+DEBUG:    > Sec-WebSocket-Accept: YaBoagq9EN6ugUXHqtPGfHuoLL4=
+DEBUG:    > Sec-WebSocket-Extensions: permessage-deflate
+DEBUG:    > date: Thu, 30 Apr 2026 13:49:33 GMT
+DEBUG:    > server: uvicorn
+INFO:     connection open
+DEBUG:    = connection is OPEN
+DEBUG:    > TEXT '{"type":"snapshot","chat":[],"directiva":[{"id"...4","nombre":"Vecino"}]}' [1447 bytes]
+DEBUG:    > TEXT '{"type":"presence:update","presence":[{"id":"e0...4","nombre":"Vecino"}]}' [103 bytes]
+DEBUG:    < TEXT '{"type":"presence:join","user_id":"5cb05fc5-0fb...dministrador Neighbor"}' [107 bytes]
+DEBUG:    > TEXT '{"type":"presence:update","presence":[{"id":"5c...inistrador Neighbor"}]}' [119 bytes]

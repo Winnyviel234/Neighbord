@@ -1,0 +1,19 @@
+import React from 'react';
+import { createRoot } from 'react-dom/client';
+import { BrowserRouter } from 'react-router-dom';
+import App from './App.jsx';
+import { AuthProvider } from './context/AuthContext.jsx';
+import ErrorBoundary from './components/common/ErrorBoundary.jsx';
+import './styles/globals.css';
+
+createRoot(document.getElementById('root')).render(
+  <React.StrictMode>
+    <BrowserRouter>
+      <ErrorBoundary>
+        <AuthProvider>
+          <App />
+        </AuthProvider>
+      </ErrorBoundary>
+    </BrowserRouter>
+  </React.StrictMode>
+);
