@@ -63,7 +63,16 @@ create table if not exists pagos (
   fecha_pago date not null,
   metodo text not null default 'efectivo',
   referencia text,
+  estado text not null default 'pendiente' check (estado in ('pendiente','verificado','rechazado')),
+  comprobante_url text,
+  verificado_por uuid references usuarios(id),
+  verificado_at timestamptz,
   registrado_por uuid references usuarios(id),
+  -- Strike integration fields
+  strike_invoice_id text,
+  strike_payment_request text,
+  strike_lnurl text,
+  strike_expires_at timestamptz,
   created_at timestamptz not null default now()
 );
 

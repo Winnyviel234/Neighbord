@@ -1,64 +1,39 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 
-from app.core.security import create_access_token, get_current_user, hash_password, verify_password
-from app.core.supabase import table
+from app.core.security import get_current_user
+from app.modules.auth.service import AuthService
+from app.modules.auth.model import RegisterRequest, LoginRequest, PasswordChangeRequest, ProfileUpdateRequest
 from app.schemas.schemas import LoginIn, PasswordChangeIn, ProfileUpdateIn, RegisterIn
-from app.services.email_service import EmailService
 
 router = APIRouter(prefix="/auth", tags=["auth"])
+
+auth_service = AuthService()
 
 
 @router.post("/register")
 def register(payload: RegisterIn):
-    existing = table("usuarios").select("id").eq("email", payload.email).execute()
-    if existing.data:
-        raise HTTPException(status_code=409, detail="Este correo ya está registrado")
-
-    user = {
-        "nombre": payload.nombre,
-        "email": payload.email,
-        "password_hash": hash_password(payload.password),
-        "telefono": payload.telefono,
-        "direccion": payload.direccion,
-        "documento": payload.documento,
-        "rol": "vecino",
-        "estado": "pendiente",
-        "activo": True,
-    }
-    created = table("usuarios").insert(user).execute().data[0]
-    EmailService().welcome(payload.email, payload.nombre)
-    return {"message": "Registro creado. Espera aprobación de la directiva.", "user": created}
+    data = RegisterRequest(**payload.model_dump())
+    return auth_service.register(data)
 
 
 @router.post("/login")
 def login(payload: LoginIn):
-    result = table("usuarios").select("*").eq("email", payload.email).single().execute()
-    user = result.data
-    if not user or not verify_password(payload.password, user["password_hash"]):
-        raise HTTPException(status_code=401, detail="Credenciales inválidas")
-    if user.get("estado") not in ["aprobado", "activo"]:
-        raise HTTPException(status_code=403, detail="Tu cuenta aún no está aprobada")
-    token = create_access_token({"sub": user["id"], "role": user["rol"]})
-    user.pop("password_hash", None)
-    return {"access_token": token, "token_type": "bearer", "user": user}
+    data = LoginRequest(**payload.model_dump())
+    return auth_service.login(data)
 
 
 @router.get("/me")
 def me(user: dict = Depends(get_current_user)):
-    user.pop("password_hash", None)
-    return user
+    return auth_service.get_current_user(user["id"])
 
 
 @router.patch("/me")
 def update_me(payload: ProfileUpdateIn, user: dict = Depends(get_current_user)):
-    updated = table("usuarios").update(payload.model_dump()).eq("id", user["id"]).execute().data[0]
-    updated.pop("password_hash", None)
-    return updated
+    data = ProfileUpdateRequest(**payload.model_dump())
+    return auth_service.update_profile(user["id"], data)
 
 
 @router.post("/change-password")
 def change_password(payload: PasswordChangeIn, user: dict = Depends(get_current_user)):
-    if not verify_password(payload.password_actual, user["password_hash"]):
-        raise HTTPException(status_code=400, detail="Contraseña actual incorrecta")
-    table("usuarios").update({"password_hash": hash_password(payload.password_nueva)}).eq("id", user["id"]).execute()
-    return {"message": "Contraseña actualizada"}
+    data = PasswordChangeRequest(**payload.model_dump())
+    return auth_service.change_password(user["id"], data)

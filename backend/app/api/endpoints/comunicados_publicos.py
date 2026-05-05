@@ -33,13 +33,14 @@ def comunicados_publicos():
 
 @router.get("/landing")
 def landing_publica():
-    votaciones = table("votaciones").select("*").eq("estado", "activa").order("created_at", desc=True).limit(3).execute().data
+    votaciones = table("votaciones").select("*").eq("estado", "activa").order("created_at", desc=True).limit(12).execute().data
     for v in votaciones:
         _add_stats(v)
     return {
-        "comunicados": table("comunicados").select("*").eq("publicado", True).order("created_at", desc=True).limit(3).execute().data,
-        "noticias": table("noticias").select("*").eq("publicado", True).order("created_at", desc=True).limit(3).execute().data,
+        "comunicados": table("comunicados").select("*").eq("publicado", True).order("created_at", desc=True).limit(6).execute().data,
+        "noticias": table("noticias").select("*").eq("publicado", True).order("created_at", desc=True).limit(6).execute().data,
         "votaciones": votaciones,
-        "asambleas": table("reuniones").select("*").eq("tipo", "general").order("fecha", desc=False).limit(3).execute().data,
+        "pagos": table("pagos").select("*").order("fecha_pago", desc=True).limit(6).execute().data,
+        "asambleas": table("reuniones").select("*").eq("tipo", "general").order("fecha", desc=False).limit(6).execute().data,
         "directiva": table("directiva").select("*").eq("activo", True).order("cargo", desc=False).execute().data,
     }

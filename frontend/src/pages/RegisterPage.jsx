@@ -1,12 +1,20 @@
 import { Link } from 'react-router-dom';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { authService } from '../services/api';
 
 export default function RegisterPage() {
   const { register } = useAuth();
-  const [form, setForm] = useState({ nombre: '', email: '', password: '', telefono: '', direccion: '', documento: '' });
+  const [sectors, setSectors] = useState([]);
+  const [form, setForm] = useState({ nombre: '', email: '', password: '', telefono: '', direccion: '', sector: '' });
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
+
+  useEffect(() => {
+    authService.getSectors()
+      .then((data) => setSectors(Array.isArray(data) ? data : []))
+      .catch(() => setSectors([]));
+  }, []);
 
   async function onSubmit(event) {
     event.preventDefault();
@@ -36,14 +44,28 @@ export default function RegisterPage() {
             ['password', 'Contraseña'],
             ['telefono', 'Teléfono'],
             ['direccion', 'Dirección'],
-            ['documento', 'Documento']
+            ['sector', 'Sector']
           ].map(([key, label]) => (
             <label key={key} className="block">
               <span className="label">{label}</span>
-              <input className="input mt-1" type={key === 'password' ? 'password' : key === 'email' ? 'email' : 'text'} value={form[key]} onChange={(e) => setForm({ ...form, [key]: e.target.value })} required={['nombre', 'email', 'password', 'direccion'].includes(key)} />
+              <input
+                list={key === 'sector' ? 'sector-options' : undefined}
+                className="input mt-1"
+                type={key === 'password' ? 'password' : key === 'email' ? 'email' : 'text'}
+                value={form[key]}
+                onChange={(e) => setForm({ ...form, [key]: e.target.value })}
+                required={['nombre', 'email', 'password', 'direccion', 'sector'].includes(key)}
+              />
             </label>
           ))}
         </div>
+        {sectors.length > 0 && (
+          <datalist id="sector-options">
+            {sectors.map((sector) => (
+              <option key={sector.id} value={sector.name} />
+            ))}
+          </datalist>
+        )}
         <button className="btn-primary mt-6 w-full">Enviar registro</button>
         <p className="mt-5 text-center text-sm text-slate-600"><Link className="font-bold text-neighbor-blue" to="/login">Volver al login</Link></p>
       </form>

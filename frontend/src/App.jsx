@@ -20,7 +20,11 @@ import AdminPublicacionesPage from './pages/AdminPublicacionesPage.jsx';
 import OtrasPaginas from './pages/OtrasPaginas.jsx';
 import DirectivaPage from './pages/DirectivaPage.jsx';
 import MapaSectorPage from './pages/MapaSectorPage.jsx';
+import ExplorerMapPage from './pages/ExplorerMapPage.jsx';
 import ComunidadPage from './pages/ComunidadPage.jsx';
+import NotificationCenterPage from './pages/NotificationCenterPage.jsx';
+import NotificationPreferencesPage from './pages/NotificationPreferencesPage.jsx';
+import AdminDashboardPage from './pages/AdminDashboardPage.jsx';
 
 function Protected({ children, roles }) {
   const { user, loading } = useAuth();
@@ -44,6 +48,7 @@ export default function App() {
         <Route path="reuniones" element={<ReunionesPage />} />
         <Route path="votaciones" element={<VotacionesPage />} />
         <Route path="mapa" element={<MapaSectorPage />} />
+        <Route path="mapa-explorer" element={<ExplorerMapPage />} />
         <Route path="comunidad" element={<ComunidadPage />} />
         <Route path="solicitudes" element={<SolicitudesPage />} />
         <Route path="comunicados" element={<ComunicadosPage />} />
@@ -53,6 +58,9 @@ export default function App() {
         <Route path="directiva" element={<Protected roles={['admin', 'directiva', 'tesorero']}><DirectivaPage /></Protected>} />
         <Route path="reportes" element={<Protected roles={['admin', 'directiva', 'tesorero']}><ReportesPage /></Protected>} />
         <Route path="admin" element={<Protected roles={['admin']}><AdminPublicacionesPage /></Protected>} />
+        <Route path="admin-dashboard" element={<Protected roles={['admin', 'directiva', 'tesorero']}><AdminDashboardPage /></Protected>} />
+        <Route path="notificaciones" element={<NotificationCenterPage />} />
+        <Route path="preferencias-notificaciones" element={<NotificationPreferencesPage />} />
         <Route path="otros" element={<OtrasPaginas />} />
       </Route>
     </Routes>

@@ -182,7 +182,7 @@ export default function VotacionesPage() {
       {error && <p className="mt-4 rounded-md bg-red-50 p-3 text-sm font-semibold text-red-700">{error}</p>}
 
       {hasRole('admin') && (
-        <form onSubmit={submit} className="card mt-6 grid gap-4 p-5 md:grid-cols-2">
+        <form onSubmit={submit} className="card mt-6 grid gap-3 p-5 md:grid-cols-2">
           <h2 className="font-bold text-neighbor-navy md:col-span-2">{editing ? 'Editar votacion' : 'Crear votacion'}</h2>
           <select className="input" value={form.modo} onChange={(e) => setForm({ ...form, modo: e.target.value, candidatos: [], opciones: '' })}>
             <option value="normal">Votacion normal</option>
@@ -219,11 +219,6 @@ export default function VotacionesPage() {
           )}
 
           <textarea className="input min-h-24 md:col-span-2" placeholder="Descripcion" value={form.descripcion} onChange={(e) => setForm({ ...form, descripcion: e.target.value })} />
-          <div className="md:col-span-2">
-            <label className="label">Imagen (opcional)</label>
-            <input type="file" accept="image/*" onChange={handleImageChange} className="input" />
-            {preview && <img src={preview} alt="Preview" className="mt-2 h-32 w-auto rounded-md object-cover" />}
-          </div>
           <div className="flex gap-2">
             <button className="btn-primary">{editing ? 'Guardar cambios' : 'Crear'}</button>
             {editing && <button type="button" className="btn-secondary" onClick={() => { setEditing(null); setForm({...blankForm, imagen: null }); setPreview(null); }}>Cancelar</button>}
@@ -231,15 +226,15 @@ export default function VotacionesPage() {
         </form>
       )}
 
-      <div className="mt-6 grid gap-6 md:grid-cols-2">
+      <div className="mt-6 grid gap-6 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
         {rows.length ? rows.map((row) => {
           const isElection = (row.opciones || []).some((option) => parseElectionOption(option));
           const isActive = row.estado === 'activa';
           return (
-            <article key={row.id} className="card overflow-hidden p-0">
+            <article key={row.id} className="card overflow-hidden p-0 flex flex-col">
               {row.imagen_url && (
-                <div className="aspect-video w-full overflow-hidden bg-gradient-to-br from-neighbor-mist to-slate-100">
-                  <img src={mediaUrl(row.imagen_url)} alt={row.titulo} className="h-full w-full object-cover" />
+                <div className="img-container-aspect-video">
+                  <img src={mediaUrl(row.imagen_url)} alt={row.titulo} className="img-responsive" />
                 </div>
               )}
               <div className="border-b border-slate-100 bg-neighbor-mist p-5">

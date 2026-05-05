@@ -45,3 +45,20 @@ button, input, textarea, select {
   @apply text-sm font-semibold text-slate-700;
 }
 
+/* Image responsiveness utilities */
+.img-responsive {
+  @apply h-full w-full object-cover;
+}
+
+.img-container {
+  @apply overflow-hidden rounded-lg bg-gradient-to-br from-neighbor-mist to-slate-100;
+}
+
+.img-container-aspect-video {
+  @apply aspect-video w-full img-container;
+}
+
+.img-container-thumbnail {
+  @apply h-32 w-full img-container;
+}
+

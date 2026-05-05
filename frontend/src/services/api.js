@@ -14,11 +14,23 @@ export function mediaUrl(url) {
 }
 
 export function liveSocketUrl() {
-  const url = new URL(api.defaults.baseURL);
-  url.protocol = url.protocol === 'https:' ? 'wss:' : 'ws:';
-  url.pathname = `${url.pathname.replace(/\/$/, '')}/ws/live`;
-  url.search = '';
-  return url.toString();
+  const baseURL = import.meta.env.VITE_API_URL || '/api';
+  
+  let wsUrl;
+  if (/^https?:\/\//i.test(baseURL)) {
+    // URL absoluta (ej: http://localhost:8000)
+    const url = new URL(baseURL);
+    url.protocol = url.protocol === 'https:' ? 'wss:' : 'ws:';
+    url.pathname = `${url.pathname.replace(/\/$/, '')}/ws/live`;
+    wsUrl = url.toString();
+  } else {
+    // URL relativa (ej: /api)
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const host = window.location.host;
+    wsUrl = `${protocol}//${host}${baseURL.replace(/\/$/, '')}/ws/live`;
+  }
+  
+  return wsUrl;
 }
 
 const isDashboardEmpty = (payload) => {
@@ -95,11 +107,12 @@ function buildFormData(data, fileField = 'imagen') {
 }
 
 export const authService = {
-  login: (data) => api.post('/auth/login', data).then((r) => r.data),
-  register: (data) => api.post('/auth/register', data).then((r) => r.data),
-  me: () => api.get('/auth/me').then((r) => r.data),
-  updateMe: (data) => api.patch('/auth/me', data).then((r) => r.data),
-  changePassword: (data) => api.post('/auth/change-password', data).then((r) => r.data)
+  login: (data) => api.post('/v2/auth/login', data).then((r) => r.data),
+  register: (data) => api.post('/v2/auth/register', data).then((r) => r.data),
+  me: () => api.get('/v2/auth/me').then((r) => r.data),
+  updateMe: (data) => api.patch('/v2/auth/me', data).then((r) => r.data),
+  changePassword: (data) => api.post('/v2/auth/change-password', data).then((r) => r.data),
+  getSectors: () => api.get('/v2/sectors').then((r) => r.data)
 };
 
 export const dataService = {
@@ -131,10 +144,16 @@ export const dataService = {
     return api.patch(`/votaciones/${id}/form`, formData, { headers: { 'Content-Type': 'multipart/form-data' } }).then((r) => r.data);
   },
   eliminarVotacion: (id) => deleteWithDemo(id, () => api.delete(`/votaciones/${id}`)),
-  votar: (id, opcion) => api.post(`/votaciones/${id}/votar`, { opcion }).then((r) => r.data),
+  votar: (id, opcion) => {
+    if (isDemoId(id)) {
+      return Promise.reject({ response: { data: { detail: 'No se puede votar en datos de demostración.' } } });
+    }
+    return api.post(`/votaciones/${id}/votar`, { opcion }).then((r) => r.data);
+  },
   finalizarEleccion: (id) => api.post(`/votaciones/${id}/finalizar-eleccion`).then((r) => r.data),
   pagos: () => api.get('/cuotas/pagos').then((r) => r.data),
   crearPago: (data) => api.post('/finanzas/pagos', data).then((r) => r.data),
+  crearPagoSolicitud: (data) => api.post('/finanzas/pagos/solicitud', data).then((r) => r.data),
   actualizarPago: (id, data) => api.patch(`/finanzas/pagos/${id}`, data).then((r) => r.data),
   eliminarPago: (id) => deleteWithDemo(id, () => api.delete(`/finanzas/pagos/${id}`)),
   transacciones: () => getWithDemo(api.get('/finanzas/transacciones'), demoData.transacciones),
@@ -198,7 +217,15 @@ export const dataService = {
     const formData = buildFormData(data, 'archivo');
     return api.post('/documentos/form', formData, { headers: { 'Content-Type': 'multipart/form-data' } }).then((r) => r.data);
   },
-  reporteUrl: (tipo, formato) => `${api.defaults.baseURL}/reportes/${tipo}.${formato}`
+  reporteUrl: (tipo, formato) => `${api.defaults.baseURL}/reportes/${tipo}.${formato}`,
+  getStatistics: (endpoint) => api.get(`/v2/statistics/${endpoint}`).then((r) => r.data),
+  getAnalytics: () => api.get('/v2/statistics/analytics').then((r) => r.data),
+  getNotifications: (limit = 20) => api.get('/v2/notifications', { params: { limit } }).then((r) => r.data),
+  getUnreadNotificationCount: () => api.get('/v2/notifications/unread/count').then((r) => r.data),
+  markNotificationAsRead: (id) => api.patch(`/v2/notifications/${id}/read`).then((r) => r.data),
+  markAllNotificationsAsRead: () => api.post('/v2/notifications/mark-multiple-read', { ids: [] }).then((r) => r.data),
+  getNotificationPreferences: () => api.get('/v2/notifications/preferences').then((r) => r.data),
+  updateNotificationPreferences: (preferences) => api.patch('/v2/notifications/preferences', preferences).then((r) => r.data)
 };
 
 export default api;

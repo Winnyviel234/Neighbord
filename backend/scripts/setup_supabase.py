@@ -27,6 +27,9 @@ def main():
     admin_name = os.getenv("ADMIN_NAME", "Administrador Neighbord")
     admin_email = os.getenv("ADMIN_EMAIL", "admin@gmail.com")
     admin_password = os.getenv("ADMIN_PASSWORD", "CambiaEstaClave123")
+    
+    # Limitar la contraseña a 72 bytes máximo para bcrypt
+    admin_password = admin_password[:72]
 
     schema_sql = read_sql("supabase_schema.sql")
     noticias_sql = read_sql("supabase_noticias.sql")

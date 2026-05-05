@@ -1,4 +1,5 @@
 import { Loader2 } from 'lucide-react';
+import GoogleMapComponent from './GoogleMapComponent';
 
 export function Spinner({ label = 'Cargando...' }) {
   return (
@@ -41,3 +42,5 @@ export function EmptyState({ title = 'Sin datos', text = 'Cuando existan registr
 export function Badge({ children, className = '' }) {
   return <span className={`rounded-full bg-neighbor-mist px-3 py-1 text-xs font-bold text-neighbor-navy ${className}`}>{children}</span>;
 }
+
+export { GoogleMapComponent };

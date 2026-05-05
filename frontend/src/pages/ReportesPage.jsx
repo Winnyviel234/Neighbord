@@ -14,12 +14,17 @@ const reports = [
 export default function ReportesPage() {
   const [email, setEmail] = useState({ destinatarios: '', asunto: '', mensaje: '' });
   const [documentos, setDocumentos] = useState(null);
+  const [analytics, setAnalytics] = useState(null);
   const [documento, setDocumento] = useState({ titulo: '', descripcion: '', archivo: null });
   const [message, setMessage] = useState('');
 
   const loadDocuments = () => dataService.documentos().then(setDocumentos).catch(() => setDocumentos([]));
+  const loadAnalytics = () => dataService.getAnalytics().then(setAnalytics).catch(() => setAnalytics(null));
 
-  useEffect(() => { loadDocuments(); }, []);
+  useEffect(() => {
+    loadDocuments();
+    loadAnalytics();
+  }, []);
 
   async function downloadReport(type, format) {
     const blob = await dataService.descargarReporte(type, format);
@@ -62,6 +67,60 @@ export default function ReportesPage() {
           </article>
         ))}
       </div>
+
+      {analytics && (
+        <section className="mt-6 card p-5">
+          <h2 className="font-bold text-neighbor-navy">Análisis avanzado de reportes</h2>
+          <div className="mt-5 grid gap-4 md:grid-cols-3">
+            <div className="rounded-xl border border-slate-200 p-4">
+              <p className="text-sm uppercase text-slate-500">Total pagos 30d</p>
+              <p className="mt-2 text-2xl font-semibold">{analytics.dashboard.payments.recent_payments_30d || 0}</p>
+            </div>
+            <div className="rounded-xl border border-slate-200 p-4">
+              <p className="text-sm uppercase text-slate-500">Monto total</p>
+              <p className="mt-2 text-2xl font-semibold">S/ {analytics.dashboard.payments.total_amount?.toFixed(2) ?? '0.00'}</p>
+            </div>
+            <div className="rounded-xl border border-slate-200 p-4">
+              <p className="text-sm uppercase text-slate-500">Solicitudes abiertas</p>
+              <p className="mt-2 text-2xl font-semibold">{analytics.dashboard.complaints.total_complaints || 0}</p>
+            </div>
+          </div>
+
+          <div className="mt-6 grid gap-4 lg:grid-cols-[1.5fr_1fr]">
+            <div className="rounded-xl border border-slate-200 p-4">
+              <p className="font-semibold text-neighbor-navy">Tendencia de pagos</p>
+              <div className="mt-4 space-y-3">
+                {analytics.payment_trends.months.map((month, index) => (
+                  <div key={month} className="space-y-1">
+                    <div className="flex items-center justify-between text-sm text-slate-600">
+                      <span>{month}</span>
+                      <span>{analytics.payment_trends.amounts[index].toFixed(2)}</span>
+                    </div>
+                    <div className="h-3 overflow-hidden rounded-full bg-slate-100">
+                      <div className="h-full rounded-full bg-teal-500" style={{ width: `${Math.min(100, analytics.payment_trends.amounts[index] / (analytics.payment_trends.amounts.reduce((a, b) => a + b, 0) || 1) * 100)}%` }} />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="rounded-xl border border-slate-200 p-4">
+              <p className="font-semibold text-neighbor-navy">Categorías de solicitudes</p>
+              <div className="mt-4 space-y-2">
+                {Object.entries(analytics.complaint_trends.categories).map(([category, count]) => (
+                  <div key={category} className="flex items-center justify-between rounded-lg bg-slate-50 px-3 py-2 text-sm">
+                    <span>{category}</span>
+                    <span className="font-semibold">{count}</span>
+                  </div>
+                ))}
+                {!Object.keys(analytics.complaint_trends.categories).length && (
+                  <p className="text-sm text-slate-500">No hay datos de categorías disponibles.</p>
+                )}
+              </div>
+            </div>
+          </div>
+        </section>
+      )}
 
       <div className="mt-6 grid items-start gap-6 lg:grid-cols-[420px_minmax(0,1fr)]">
         <div className="grid gap-6">

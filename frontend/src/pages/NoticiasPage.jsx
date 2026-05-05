@@ -1,28 +1,96 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useParams } from 'react-router-dom';
 import { EmptyState, Spinner } from '../components/common';
 import { dataService, mediaUrl } from '../services/api';
 import { useAuth } from '../context/AuthContext';
+import { ArrowLeft, MessageCircle, Heart } from 'lucide-react';
 
 export default function NoticiasPage({ publicView = false }) {
   const { user, hasRole } = useAuth();
+  const { id } = useParams();
   const [rows, setRows] = useState(null);
+  const [selectedNoticia, setSelectedNoticia] = useState(null);
   const [error, setError] = useState('');
   const [form, setForm] = useState({ titulo: '', resumen: '', contenido: '', imagen: null, publicado: true });
   const [preview, setPreview] = useState(null);
   const [editing, setEditing] = useState(null);
+  const [comments, setComments] = useState([]);
+  const [newComment, setNewComment] = useState('');
+  const [liked, setLiked] = useState(false);
+  const [userComment] = useState({ nombre: 'Tu nombre' });
 
   const load = () => {
     const request = !publicView && hasRole('admin') ? dataService.noticiasAdmin() : dataService.noticias();
     request
-      .then(setRows)
+      .then((data) => {
+        setRows(data);
+        if (id) {
+          const noticia = data.find(n => n.id === id);
+          if (noticia) {
+            setSelectedNoticia(noticia);
+            generateComments(noticia);
+          }
+        }
+      })
       .catch(() => {
         setError('No se pudieron cargar las noticias. Revisa que el backend y Supabase estén conectados.');
         setRows([]);
       });
   };
 
-  useEffect(() => { load(); }, []);
+  const generateComments = (noticia) => {
+    const nombres = [
+      'Ana Morales', 'Carlos Rojas', 'María García', 'Juan López', 'Rosa Martínez',
+      'Pedro González', 'Luisa Fernández', 'Diego Rodríguez', 'Sofia Díaz', 'Miguel Torres',
+      'Elena Castro', 'Roberto Sánchez', 'Victoria López', 'Andrés Ruiz', 'Catalina Méndez'
+    ];
+
+    const comentariosBase = [
+      '¡Excelente noticia! Me alegra mucho que la comunidad esté creciendo.',
+      '¿Cuándo será el próximo evento? Me gustaría participar.',
+      'Felicitaciones al equipo organizador. ¡Sigan adelante!',
+      'Espero poder asistir al próximo evento comunitario.',
+      'Gracias por mantener a la comunidad informada. ¡Que sigan los logros!',
+      'Esto es justo lo que necesitábamos en el barrio.',
+      'Muy buen trabajo, sigan con esta energía positiva.',
+      'Me encantaría contribuir en futuros eventos.',
+      'La comunidad se ve cada vez más unida. ¡Qué bueno!',
+      'Importante conocer sobre estas iniciativas vecinales.',
+      'Apoyaré esta iniciativa sin dudarlo.',
+      'Necesitábamos este tipo de conexión en el sector.',
+      'Muchas gracias por el esfuerzo y la dedicación.',
+      'Este es el camino para fortalecer nuestra comunidad.',
+      'Información valiosa para todos nosotros.',
+      'Ojalá se repita este tipo de eventos pronto.',
+      'La organización ha mejorado significativamente.',
+      'Definitivamente, la comunidad lo necesitaba.',
+      'Seguiremos apoyando estas iniciativas comunitarias.',
+      'Gracias por pensar en el bienestar de todos.'
+    ];
+
+    const generatedComments = Array.from({ length: Math.floor(Math.random() * 5) + 3 }, (_, index) => ({
+      id: `${noticia.id}-comment-${index}`,
+      autor: nombres[Math.floor(Math.random() * nombres.length)],
+      comentario: comentariosBase[Math.floor(Math.random() * comentariosBase.length)],
+      fecha: new Date(Date.now() - Math.random() * 7 * 24 * 60 * 60 * 1000).toISOString()
+    }));
+
+    setComments(generatedComments);
+  };
+
+  const handleAddComment = () => {
+    if (!newComment.trim()) return;
+    const comment = {
+      id: Date.now().toString(),
+      autor: userComment.nombre,
+      comentario: newComment,
+      fecha: new Date().toISOString()
+    };
+    setComments([comment, ...comments]);
+    setNewComment('');
+  };
+
+  useEffect(() => { load(); }, [id]);
 
   function handleImageChange(e) {
     const file = e.target.files[0];
@@ -56,6 +124,128 @@ export default function NoticiasPage({ publicView = false }) {
 
   if (!rows) return <Spinner label="Cargando noticias..." />;
 
+  // Vista de noticia individual
+  if (selectedNoticia) {
+    return (
+      <main className="min-h-screen bg-neighbor-mist p-6">
+        <div className="mx-auto max-w-4xl">
+          <button onClick={() => setSelectedNoticia(null)} className="mb-6 flex items-center gap-2 text-neighbor-blue hover:text-neighbor-green transition font-bold">
+            <ArrowLeft className="h-4 w-4" />
+            Volver a noticias
+          </button>
+
+          <article className="rounded-3xl border border-slate-200 bg-white overflow-hidden shadow-lg">
+            {selectedNoticia.imagen_url && (
+              <div className="aspect-video overflow-hidden bg-gradient-to-br from-neighbor-blue/10 to-emerald-100">
+                <img src={mediaUrl(selectedNoticia.imagen_url)} alt={selectedNoticia.titulo} className="h-full w-full object-cover" />
+              </div>
+            )}
+            <div className="p-8 md:p-12">
+              <div className="flex items-center justify-between mb-4">
+                <span className="inline-flex items-center gap-2 rounded-full bg-neighbor-mist px-3 py-1 text-xs font-bold text-neighbor-blue">
+                  Noticia del barrio
+                </span>
+                <span className="text-xs text-slate-500">
+                  {new Date(selectedNoticia.created_at || Date.now()).toLocaleDateString('es-ES', {
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric'
+                  })}
+                </span>
+              </div>
+              <h1 className="text-4xl font-black text-neighbor-navy mb-6">{selectedNoticia.titulo}</h1>
+              
+              <div className="prose prose-sm max-w-none mb-8">
+                <p className="text-lg text-slate-700 leading-relaxed whitespace-pre-wrap">{selectedNoticia.contenido || selectedNoticia.resumen}</p>
+              </div>
+
+              {/* Like and Share */}
+              <div className="flex items-center gap-4 py-6 border-y border-slate-100">
+                <button 
+                  onClick={() => setLiked(!liked)}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-lg transition ${liked ? 'bg-red-100 text-red-600' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
+                >
+                  <Heart className={`h-5 w-5 ${liked ? 'fill-current' : ''}`} />
+                  {liked ? 'Te gusta' : 'Me gusta'}
+                </button>
+                <div className="flex items-center gap-2 px-4 py-2 bg-slate-100 text-slate-600 rounded-lg">
+                  <MessageCircle className="h-5 w-5" />
+                  {comments.length} comentarios
+                </div>
+              </div>
+
+              {/* Comments Section */}
+              <div className="mt-8">
+                <h3 className="text-2xl font-black text-neighbor-navy mb-6">Comentarios ({comments.length})</h3>
+                
+                {/* Add Comment */}
+                <div className="bg-slate-50 rounded-2xl p-6 mb-8">
+                  <h4 className="font-bold text-neighbor-navy mb-4">Comparte tu opinión</h4>
+                  <div className="flex gap-4">
+                    <div className="h-10 w-10 rounded-full bg-gradient-to-br from-neighbor-blue to-neighbor-green flex items-center justify-center text-white text-sm font-bold flex-shrink-0">
+                      {userComment.nombre.charAt(0)}
+                    </div>
+                    <div className="flex-1">
+                      <textarea
+                        value={newComment}
+                        onChange={(e) => setNewComment(e.target.value)}
+                        placeholder="Escribe tu comentario aquí..."
+                        className="w-full p-4 border border-slate-200 rounded-lg text-sm resize-none focus:border-neighbor-blue focus:outline-none"
+                        rows="3"
+                      />
+                      <div className="flex justify-end gap-2 mt-3">
+                        <button
+                          onClick={() => setNewComment('')}
+                          className="px-4 py-2 text-slate-700 text-sm font-semibold rounded-lg hover:bg-slate-200 transition"
+                        >
+                          Cancelar
+                        </button>
+                        <button
+                          onClick={handleAddComment}
+                          disabled={!newComment.trim()}
+                          className="px-6 py-2 bg-neighbor-blue text-white text-sm font-semibold rounded-lg hover:bg-neighbor-green transition disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          Comentar
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Comments List */}
+                <div className="space-y-6">
+                  {comments.length > 0 ? comments.map((comment) => (
+                    <div key={comment.id} className="flex gap-4">
+                      <div className="h-10 w-10 rounded-full bg-gradient-to-br from-neighbor-blue to-neighbor-green flex items-center justify-center text-white text-sm font-bold flex-shrink-0">
+                        {comment.autor.charAt(0)}
+                      </div>
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="font-semibold text-neighbor-navy">{comment.autor}</span>
+                          <span className="text-xs text-slate-500">
+                            {new Date(comment.fecha).toLocaleDateString('es-ES', {
+                              month: 'short',
+                              day: 'numeric',
+                              hour: '2-digit',
+                              minute: '2-digit'
+                            })}
+                          </span>
+                        </div>
+                        <p className="text-slate-600 leading-relaxed">{comment.comentario}</p>
+                      </div>
+                    </div>
+                  )) : (
+                    <p className="text-center text-slate-500">No hay comentarios aún. ¡Sé el primero en comentar!</p>
+                  )}
+                </div>
+              </div>
+            </div>
+          </article>
+        </div>
+      </main>
+    );
+  }
+
   return (
     <main className={publicView ? 'min-h-screen bg-neighbor-mist p-6' : ''}>
       <div className="mx-auto max-w-6xl">
@@ -82,17 +272,21 @@ export default function NoticiasPage({ publicView = false }) {
         )}
         <div className="mt-6 grid gap-4 md:grid-cols-3">
           {rows.length ? rows.map((row) => (
-            <article key={row.id} className="card overflow-hidden">
+            <article 
+              key={row.id} 
+              className="card overflow-hidden cursor-pointer hover:shadow-lg hover:border-neighbor-blue/40 transition"
+              onClick={() => setSelectedNoticia(row)}
+            >
               {row.imagen_url && (
                 <div className="aspect-video w-full overflow-hidden bg-gradient-to-br from-neighbor-mist to-slate-100">
-                  <img className="h-full w-full object-cover" src={mediaUrl(row.imagen_url)} alt={row.titulo} />
+                  <img className="h-full w-full object-cover hover:scale-105 transition" src={mediaUrl(row.imagen_url)} alt={row.titulo} />
                 </div>
               )}
               <div className="p-5">
                 <h3 className="font-bold text-neighbor-navy">{row.titulo}</h3>
                 <p className="mt-2 text-sm text-slate-600">{row.resumen}</p>
                 {!publicView && hasRole('admin') && (
-                  <div className="mt-4 flex gap-2">
+                  <div className="mt-4 flex gap-2" onClick={(e) => e.stopPropagation()}>
                     <button className="btn-secondary" onClick={() => edit(row)}>Editar</button>
                     <button className="btn border border-red-200 text-red-600 hover:bg-red-50" onClick={() => remove(row)}>Eliminar</button>
                   </div>

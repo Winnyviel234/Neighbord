@@ -5,6 +5,7 @@ import { roleLabel } from '../../lib/utils';
 
 const items = [
   { to: '/app', label: 'Dashboard', icon: Home, roles: ['admin', 'directiva', 'tesorero', 'vecino'] },
+  { to: '/app/admin-dashboard', label: 'Dashboard Admin', icon: BarChart3, roles: ['admin', 'directiva', 'tesorero'] },
   { to: '/app/perfil', label: 'Perfil', icon: UserRound, roles: ['admin', 'directiva', 'tesorero', 'vecino'] },
   { to: '/app/vecinos', label: 'Vecinos', icon: Users, roles: ['admin', 'directiva', 'tesorero'] },
   { to: '/app/reuniones', label: 'Reuniones', icon: Bell, roles: ['admin', 'directiva', 'tesorero', 'vecino'] },
@@ -18,6 +19,8 @@ const items = [
   { to: '/app/finanzas', label: 'Finanzas', icon: WalletCards, roles: ['admin', 'directiva', 'tesorero'] },
   { to: '/app/directiva', label: 'Directiva', icon: Landmark, roles: ['admin', 'directiva', 'tesorero'] },
   { to: '/app/reportes', label: 'Reportes', icon: BarChart3, roles: ['admin', 'directiva', 'tesorero'] },
+  { to: '/app/notificaciones', label: 'Notificaciones', icon: Bell, roles: ['admin', 'directiva', 'tesorero', 'vecino'] },
+  { to: '/app/preferencias-notificaciones', label: 'Preferencias', icon: Bell, roles: ['admin', 'directiva', 'tesorero', 'vecino'] },
   { to: '/app/admin', label: 'Publicaciones', icon: Mail, roles: ['admin', 'directiva'] }
 ];
 

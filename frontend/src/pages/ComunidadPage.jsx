@@ -12,6 +12,7 @@ export default function ComunidadPage() {
   const socketRef = useRef(null);
   const typingTimer = useRef(null);
   const messagesRef = useRef(null);
+  const queuedMessagesRef = useRef([]);
   const [status, setStatus] = useState('conectando');
   const [notifications, setNotifications] = useState(null);
   const [chat, setChat] = useState(null);
@@ -54,12 +55,11 @@ export default function ComunidadPage() {
 socket.onopen = () => {
   setStatus('en vivo');
   sendJoin(socket);
-  if (queuedMessages.length > 0) {
-    const socket = socketRef.current;
-    if (socket?.readyState === WebSocket.OPEN) {
-      queuedMessages.forEach(msg => socket.send(JSON.stringify(msg)));
-      setQueuedMessages([]);
-    }
+  const socketOpen = socketRef.current;
+  if (socketOpen?.readyState === WebSocket.OPEN && queuedMessagesRef.current.length > 0) {
+    queuedMessagesRef.current.forEach(msg => socketOpen.send(JSON.stringify(msg)));
+    queuedMessagesRef.current = [];
+    setQueuedMessages([]);
   }
 };
       socket.onclose = () => {
@@ -115,7 +115,8 @@ function sendSocket(payload) {
     return true;
   } else {
     if (payload.type === 'chat:send' || payload.type === 'directiva:send') {
-      setQueuedMessages(prev => [...prev, payload]);
+      queuedMessagesRef.current = [...queuedMessagesRef.current, payload];
+      setQueuedMessages([...queuedMessagesRef.current]);
     }
     return false;
   }

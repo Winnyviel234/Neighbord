@@ -14,7 +14,7 @@ class RegisterIn(BaseModel):
     password: str = Field(min_length=6, max_length=72)
     telefono: Optional[str] = None
     direccion: Optional[str] = None
-    documento: Optional[str] = None
+    sector: str
 
 
 class PasswordChangeIn(BaseModel):

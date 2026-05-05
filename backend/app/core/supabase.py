@@ -102,6 +102,19 @@ class SupabaseTable:
         self.params[column] = f"eq.{value}"
         return self
 
+    def or_(self, *conditions: str):
+        existing = self.params.get("or")
+        if existing:
+            self.params["or"] = ",".join([existing, *conditions])
+        else:
+            self.params["or"] = ",".join(conditions)
+        return self
+
+    def in_(self, column: str, values: list[str] | tuple[str, ...]):
+        formatted = ",".join(str(v) for v in values)
+        self.params[column] = f"in.({formatted})"
+        return self
+
     def order(self, column: str, desc: bool = False):
         self.params["order"] = f"{column}.{'desc' if desc else 'asc'}"
         return self
