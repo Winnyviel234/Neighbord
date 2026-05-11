@@ -7,9 +7,11 @@ export const shortDate = (value) => (value ? new Intl.DateTimeFormat('es-DO', { 
 
 export const roleLabel = {
   admin: 'Administrador',
-  directiva: 'Directiva',
+  directiva: 'Vice Presidente',
   tesorero: 'Tesorero',
-  vecino: 'Vecino'
+  vecino: 'Vecino',
+  vocero: 'Vocero',
+  secretaria: 'Secretaria'
 };
 
 export const datetimeLocalToISO = (datetimeLocalString) => {

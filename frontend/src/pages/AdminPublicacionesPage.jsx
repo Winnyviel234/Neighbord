@@ -10,9 +10,14 @@ export default function AdminPublicacionesPage() {
 
   async function saveComunicado(e) {
     e.preventDefault();
-    await api.post('/comunicados', comunicado);
-    setMessage('Comunicado publicado.');
-    setComunicado({ titulo: '', contenido: '', categoria: 'general', publicado: true });
+    try {
+      await dataService.crearComunicado(comunicado);
+      setMessage('Comunicado publicado correctamente.');
+      setComunicado({ titulo: '', contenido: '', categoria: 'general', publicado: true });
+      setTimeout(() => setMessage(''), 3000);
+    } catch (error) {
+      setMessage('Error al publicar comunicado: ' + (error?.response?.data?.detail || error.message));
+    }
   }
 
   async function saveNoticia(e) {

@@ -1,7 +1,7 @@
 from fastapi import APIRouter
 from datetime import datetime
 from fastapi import APIRouter, Depends, UploadFile, File, Form, HTTPException, status
-from app.core.security import get_current_user, require_roles, has_role
+from app.core.security import get_current_user, get_optional_current_user, require_roles, has_role
 from app.core.supabase import table, upload_to_storage
 from app.schemas.schemas import ReunionCreate, Reunion
 
@@ -15,12 +15,12 @@ def _add_image(data: dict, imagen: UploadFile | None) -> dict:
     return data
 
 @router.get("/", response_model=list[Reunion])
-def list_reuniones(tipo: str | None = None, user: dict = Depends(get_current_user)):
+def list_reuniones(tipo: str | None = None, user: dict | None = Depends(get_optional_current_user)):
     """Obtiene todas las reuniones, opcionalmente filtradas por tipo."""
     query = table("reuniones").select("*").order("fecha", desc=True)
     if tipo:
         query = query.eq("tipo", tipo)
-    if user["rol"] == "vecino":
+    if not user or user.get("rol") == "vecino":
         query = query.eq("tipo", "general")
     return [Reunion(**reunion) for reunion in query.execute().data]
 
@@ -33,7 +33,7 @@ def create_reunion_form(
     tipo: str = Form("general"),
     estado: str = Form("programada"),
     imagen: UploadFile | None = File(None),
-    user: dict = Depends(require_roles("admin", "directiva"))
+    user: dict = Depends(require_roles("admin", "directiva", "vocero", "secretaria"))
 ):
     """
     Crea una nueva reunión a través de un formulario, con soporte para imagen.
@@ -78,7 +78,7 @@ def update_reunion_form(
     tipo: str = Form(None),
     estado: str = Form(None),
     imagen: UploadFile | None = File(None),
-    user: dict = Depends(require_roles("admin"))
+    user: dict = Depends(require_roles("admin", "directiva", "vocero", "secretaria"))
 ):
     data = {}
     if titulo is not None: data["titulo"] = titulo

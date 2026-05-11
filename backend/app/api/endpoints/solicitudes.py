@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 
 from app.core.security import get_current_user, require_roles
 from app.core.supabase import table
@@ -9,11 +9,31 @@ router = APIRouter(prefix="/solicitudes", tags=["solicitudes"])
 
 
 @router.get("")
-def list_solicitudes(user: dict = Depends(get_current_user)):
+def list_solicitudes(
+    skip: int = Query(0, ge=0, description="Número de registros a saltar"),
+    limit: int = Query(50, ge=1, le=1000, description="Número máximo de registros"),
+    user: dict = Depends(get_current_user)
+):
     query = table("solicitudes").select("*, usuarios(nombre,email)").order("created_at", desc=True)
     if user["rol"] == "vecino":
         query = query.eq("usuario_id", user["id"])
-    return query.execute().data
+    
+    # Aplicar paginación
+    query = query.offset(skip).limit(limit)
+    data = query.execute().data
+    
+    # También obtener el total para el frontend
+    total_query = table("solicitudes").select("id", count="exact")
+    if user["rol"] == "vecino":
+        total_query = total_query.eq("usuario_id", user["id"])
+    total = total_query.execute().count
+    
+    return {
+        "data": data,
+        "total": total,
+        "skip": skip,
+        "limit": limit
+    }
 
 
 @router.post("")

@@ -1,5 +1,6 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
+from httpx import HTTPStatusError
 from app.core.security import get_current_user, require_roles
 from app.core.supabase import table, upload_to_storage
 from app.schemas.schemas import VotacionIn, VotoIn
@@ -38,6 +39,14 @@ def _add_stats(votacion: dict) -> dict:
     ]
     return votacion
 
+def _parse_datetime(value: str | None) -> datetime | None:
+    if not value:
+        return None
+    parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    if parsed.tzinfo is None:
+        return parsed.replace(tzinfo=timezone.utc)
+    return parsed.astimezone(timezone.utc)
+
 def _finish_election(votacion_id: str) -> dict:
     votacion = table("votaciones").select("*").eq("id", votacion_id).single().execute().data
     if not votacion:
@@ -75,6 +84,13 @@ def list_votaciones(user: dict = Depends(get_current_user)):
     votaciones = table("votaciones").select("*").order("created_at", desc=True).execute().data
     for v in votaciones:
         _add_stats(v)
+    if votaciones:
+        votacion_ids = [v["id"] for v in votaciones if v.get("id")]
+        votos_usuario = table("votos").select("votacion_id, opcion").eq("usuario_id", user["id"]).in_("votacion_id", votacion_ids).execute().data or []
+        votos_por_id = {v["votacion_id"]: v["opcion"] for v in votos_usuario if v.get("votacion_id")}
+        for v in votaciones:
+            if v.get("id") in votos_por_id:
+                v["mi_voto"] = votos_por_id[v["id"]]
     return votaciones
 
 @router.post("/form")
@@ -153,15 +169,44 @@ def delete_votacion(votacion_id: str, user: dict = Depends(require_roles("admin"
 
 @router.post("/{votacion_id}/votar")
 def votar(votacion_id: str, payload: VotoIn, user: dict = Depends(get_current_user)):
-    votacion = table("votaciones").select("estado").eq("id", votacion_id).single().execute().data
+    votacion = table("votaciones").select("estado, opciones, fecha_inicio, fecha_fin").eq("id", votacion_id).single().execute().data
     if not votacion:
         raise HTTPException(status_code=404, detail="Votacion no encontrada")
     if votacion.get("estado") != "activa":
         raise HTTPException(status_code=400, detail="La votacion no esta activa")
+    ahora = datetime.now(timezone.utc)
+    fecha_inicio = _parse_datetime(votacion.get("fecha_inicio"))
+    fecha_fin = _parse_datetime(votacion.get("fecha_fin"))
+    if fecha_inicio and ahora < fecha_inicio:
+        raise HTTPException(status_code=400, detail="La votacion aun no ha iniciado")
+    if fecha_fin and ahora > fecha_fin:
+        raise HTTPException(status_code=400, detail="La votacion ya finalizo")
+    if payload.opcion not in (votacion.get("opciones") or []):
+        raise HTTPException(status_code=400, detail="Opcion invalida para esta votacion")
     voted = table("votos").select("id").eq("votacion_id", votacion_id).eq("usuario_id", user["id"]).execute()
     if voted.data:
-        raise HTTPException(status_code=409, detail="Ya votaste en esta votación")
-    return table("votos").insert({"votacion_id": votacion_id, "usuario_id": user["id"], "opcion": payload.opcion}).execute().data[0]
+        raise HTTPException(status_code=409, detail="Ya votaste en esta votacion")
+    try:
+        result = table("votos").insert({"votacion_id": votacion_id, "usuario_id": user["id"], "opcion": payload.opcion}).execute().data
+    except HTTPStatusError as exc:
+        if exc.response.status_code == 409 or "23505" in exc.response.text:
+            raise HTTPException(status_code=409, detail="Ya votaste en esta votacion") from exc
+        raise
+    if not result:
+        raise HTTPException(status_code=400, detail="No se pudo registrar el voto")
+    return result[0]
+
+@router.delete("/{votacion_id}/votar")
+def cancelar_voto(votacion_id: str, user: dict = Depends(get_current_user)):
+    votacion = table("votaciones").select("estado").eq("id", votacion_id).single().execute().data
+    if not votacion:
+        raise HTTPException(status_code=404, detail="Votacion no encontrada")
+    if votacion.get("estado") != "activa":
+        raise HTTPException(status_code=400, detail="No se puede cancelar el voto en una votacion cerrada")
+    deleted = table("votos").delete().eq("votacion_id", votacion_id).eq("usuario_id", user["id"]).execute()
+    if not deleted.data:
+        raise HTTPException(status_code=404, detail="No existe un voto para eliminar")
+    return {"status": "ok"}
 
 @router.post("/{votacion_id}/finalizar-eleccion")
 def finalizar_eleccion(votacion_id: str, user: dict = Depends(require_roles("admin"))):

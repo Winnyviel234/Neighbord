@@ -1,5 +1,5 @@
 from datetime import datetime
-from fastapi import APIRouter, Depends, UploadFile, File, Form
+from fastapi import APIRouter, Depends, UploadFile, File, Form, Query
 from time import time
 
 from app.core.security import get_current_user, require_roles
@@ -19,13 +19,20 @@ def _add_image(data: dict, imagen: UploadFile | None) -> dict:
 
 
 @router.get("")
-def list_noticias():
+def list_noticias(
+    skip: int = Query(0, ge=0, description="Número de registros a saltar"),
+    limit: int = Query(20, ge=1, le=100, description="Número máximo de registros")
+):
     now = time()
+    # Usar caché solo si es el mismo límite/skip que antes
     if _CACHE["data"] is not None and now - _CACHE["at"] < CACHE_SECONDS:
-        return _CACHE["data"]
-    data = table("noticias").select("*").eq("publicado", True).order("created_at", desc=True).limit(20).execute().data
+        data = _CACHE["data"]
+        # Aplicar paginación al cache
+        return data[skip:skip + limit]
+    
+    data = table("noticias").select("*").eq("publicado", True).order("created_at", desc=True).limit(100).execute().data
     _CACHE.update({"at": now, "data": data})
-    return data
+    return data[skip:skip + limit]
 
 
 @router.post("/form")
@@ -51,8 +58,13 @@ def create_noticia_form(
 
 
 @router.get("/admin")
-def list_noticias_admin(user: dict = Depends(require_roles("admin"))):
-    return table("noticias").select("*").order("created_at", desc=True).limit(100).execute().data
+def list_noticias_admin(
+    skip: int = Query(0, ge=0),
+    limit: int = Query(50, ge=1, le=1000),
+    user: dict = Depends(require_roles("admin"))
+):
+    query = table("noticias").select("*").order("created_at", desc=True).offset(skip).limit(limit)
+    return query.execute().data
 
 
 @router.patch("/{noticia_id}/form")

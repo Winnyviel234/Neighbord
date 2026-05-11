@@ -1,16 +1,19 @@
 import { Link } from 'react-router-dom';
-import { ArrowRight, Bell, CalendarDays, CheckCircle2, Landmark, Mail, MapPin, Menu, MessageCircle, Newspaper, Phone, Vote, Users, TrendingUp, Shield, Zap, FileText, PieChart, Heart } from 'lucide-react';
-import { useEffect, useMemo, useState, useRef, useCallback } from 'react';
+import { ArrowRight, Bell, CalendarDays, CheckCircle2, Mail, MapPin, Menu, MessageCircle, Newspaper, Phone, Vote, Users, TrendingUp, Shield, Zap, FileText, PieChart } from 'lucide-react';
+import { useEffect, useMemo, useState, useRef } from 'react';
 import { dataService, mediaUrl } from '../services/api';
 import { demoLanding } from '../services/demoData';
 import { dateTime } from '../lib/utils';
 import { useAuth } from '../context/AuthContext';
 
 const empty = { comunicados: [], noticias: [], votaciones: [], asambleas: [], directiva: [], pagos: [] };
+const whatsappNumber = import.meta.env.VITE_WHATSAPP_NUMBER || '59170011223';
+const whatsappMessage = encodeURIComponent('Hola, quiero recibir informacion sobre Neighbord y la comunidad.');
+const whatsappUrl = `https://wa.me/${whatsappNumber}?text=${whatsappMessage}`;
 const withDemo = (payload) => ({
   comunicados: payload?.comunicados?.length ? payload.comunicados : demoLanding.comunicados,
   noticias: payload?.noticias?.length ? payload.noticias : demoLanding.noticias,
-  votaciones: payload?.votaciones?.length ? payload.votaciones : demoLanding.votaciones,
+  votaciones: payload?.votaciones || [],
   pagos: payload?.pagos?.length ? payload.pagos : demoLanding.pagos,
   asambleas: payload?.asambleas?.length ? payload.asambleas : demoLanding.asambleas,
   directiva: payload?.directiva?.length ? payload.directiva : demoLanding.directiva
@@ -19,69 +22,50 @@ const withDemo = (payload) => ({
 const isDemoId = (id) => String(id || '').startsWith('demo-');
 
 // Hook personalizado para animaciones de entrada
-function useIntersectionObserver(ref, options = {}) {
+function useIntersectionObserver(ref, { rootMargin = '160px', threshold = 0.01 } = {}) {
   const [isIntersecting, setIsIntersecting] = useState(false);
 
   useEffect(() => {
     const element = ref.current;
     if (!element) return;
+    if (!('IntersectionObserver' in window)) {
+      setIsIntersecting(true);
+      return;
+    }
 
     const observer = new IntersectionObserver(
       ([entry]) => {
         if (entry.isIntersecting) {
           setIsIntersecting(true);
-          observer.unobserve(element); // Solo animar una vez
+          observer.unobserve(element);
         }
       },
-      { threshold: 0.1, ...options }
+      { rootMargin, threshold }
     );
 
     observer.observe(element);
     return () => observer.disconnect();
-  }, [ref, options]);
+  }, [ref, rootMargin, threshold]);
 
   return isIntersecting;
 }
 
-// Hook para prefetching de rutas
-function usePrefetch() {
-  const prefetchRef = useRef(new Set());
-
-  const prefetchRoute = useCallback((route) => {
-    if (prefetchRef.current.has(route)) return;
-
-    // Prefetch de módulos de rutas comunes
-    const routeModules = {
-      '/app': () => import('../pages/DashboardPage.jsx'),
-      '/app/noticias': () => import('../pages/NoticiasPage.jsx'),
-      '/app/votaciones': () => import('../pages/VotacionesPage.jsx'),
-      '/app/reuniones': () => import('../pages/ReunionesPage.jsx'),
-      '/app/directiva': () => import('../pages/DirectivaPage.jsx'),
-    };
-
-    if (routeModules[route]) {
-      routeModules[route]().catch(() => {});
-      prefetchRef.current.add(route);
-    }
-  }, []);
-
-  return prefetchRoute;
-}
-
 // Componente wrapper para secciones con animación de entrada
-function SectionWrapper({ children, className = '', delay = 0 }) {
+function SectionWrapper({ children, className = '', delay = 0, id }) {
   const ref = useRef(null);
-  const isVisible = useIntersectionObserver(ref, { rootMargin: '50px' });
+  const isVisible = useIntersectionObserver(ref);
+  const transitionDelay = Math.min(delay, 120);
 
   return (
     <section
+      id={id}
       ref={ref}
-      className={`transition-all duration-700 ease-out ${
+      className={`scroll-mt-24 transition-all duration-300 ease-out will-change-transform ${
         isVisible
           ? 'opacity-100 translate-y-0'
-          : 'opacity-0 translate-y-8'
+          : 'opacity-0 translate-y-3'
       } ${className}`}
-      style={{ transitionDelay: `${delay}ms` }}
+      style={{ transitionDelay: `${transitionDelay}ms` }}
     >
       {children}
     </section>
@@ -161,40 +145,33 @@ function LazyImage({ src, alt, className = '', fallback: FallbackComponent, ...p
 }
 
 export default function LandingPage() {
-  const { user } = useAuth();
-  const prefetchRoute = usePrefetch();
+  const { user, loading: authLoading } = useAuth();
   const [data, setData] = useState(withDemo(empty));
   const [loading, setLoading] = useState(false);
   const [isRealData, setIsRealData] = useState(false);
   const [voting, setVoting] = useState({});
   const [voteMessage, setVoteMessage] = useState('');
   const [selectedOptions, setSelectedOptions] = useState({});
-
-  const [paymentForm, setPaymentForm] = useState({
-    concepto: 'Apoyo para ropa y ayuda comunitaria',
-    monto: '',
-    fecha_pago: new Date().toISOString().slice(0, 10),
-    metodo: 'transferencia',
-    referencia: ''
-  });
-  const [paymentMessage, setPaymentMessage] = useState('');
-  const [paymentError, setPaymentError] = useState('');
+  const [reuniones, setReuniones] = useState([]);
+  const [reunionesLoading, setReunionesLoading] = useState(false);
 
   const isAuthenticated = Boolean(user);
+  const showGuestActions = !authLoading && !isAuthenticated;
   const greeting = user ? `Hola, ${user.nombre}` : null;
   const dataStatus = loading
     ? 'Cargando contenido de la comunidad...'
     : isRealData
       ? 'Contenido real cargado desde el sistema'
-      : 'Mostrando contenido de demostración';
+      : 'Esperando contenido real';
 
   const handleVote = async (votacionId, opcion) => {
     if (!user) {
       setVoteMessage('Debes iniciar sesión para votar');
       return;
     }
-    if (isDemoId(votacionId)) {
-      setVoteMessage('No se puede votar en datos de demostración.');
+    const votedItem = data.votaciones.find((v) => v.id === votacionId);
+    if (votedItem?.mi_voto) {
+      setVoteMessage('Ya votaste en esta votación');
       return;
     }
     const selected = opcion || selectedOptions[votacionId];
@@ -216,36 +193,22 @@ export default function LandingPage() {
     }
   };
 
-  const handlePaymentSubmit = async (event) => {
-    event.preventDefault();
+  const handleCancelVote = async (votacionId) => {
     if (!user) {
-      setPaymentError('Debes iniciar sesión para registrar un pago.');
+      setVoteMessage('Debes iniciar sesión para cancelar tu voto');
       return;
     }
     try {
-      await dataService.crearPagoSolicitud({
-        vecino_id: user.id,
-        concepto: paymentForm.concepto,
-        monto: Number(paymentForm.monto),
-        fecha_pago: paymentForm.fecha_pago,
-        metodo: paymentForm.metodo,
-        referencia: paymentForm.referencia || null
-      });
-      setPaymentMessage('Pago registrado en la base de datos. Gracias por apoyar a la comunidad.');
-      setPaymentError('');
-      setPaymentForm({
-        concepto: 'Apoyo para ropa y ayuda comunitaria',
-        monto: '',
-        fecha_pago: new Date().toISOString().slice(0, 10),
-        metodo: 'transferencia',
-        referencia: ''
-      });
+      setVoting((prev) => ({ ...prev, [votacionId]: true }));
+      await dataService.cancelarVoto(votacionId);
+      setVoteMessage('Tu voto fue cancelado');
+      setTimeout(() => setVoteMessage(''), 3000);
       await loadLanding();
-      setTimeout(() => setPaymentMessage(''), 4000);
     } catch (err) {
-      setPaymentError(err.response?.data?.detail || 'Error al registrar el pago, intenta nuevamente.');
-      setPaymentMessage('');
-      setTimeout(() => setPaymentError(''), 4000);
+      setVoteMessage(err.response?.data?.detail || 'Error al cancelar el voto');
+      setTimeout(() => setVoteMessage(''), 3000);
+    } finally {
+      setVoting((prev) => ({ ...prev, [votacionId]: false }));
     }
   };
 
@@ -253,14 +216,21 @@ export default function LandingPage() {
     setLoading(true);
     try {
       const payload = await dataService.landing();
-      const votacionesReales = (payload?.votaciones || []).filter((v) => !isDemoId(v.id));
+      const votaciones = payload?.votaciones || [];
       const hasRealData = ['comunicados', 'noticias', 'votaciones', 'pagos', 'asambleas', 'directiva']
         .some((key) => Array.isArray(payload?.[key]) && payload[key].some((item) => !isDemoId(item?.id)));
       setIsRealData(hasRealData);
+      const votedOptions = {};
+      votaciones.forEach((v) => {
+        if (v.mi_voto) {
+          votedOptions[v.id] = v.mi_voto;
+        }
+      });
+      setSelectedOptions(votedOptions);
       setData({
         comunicados: payload?.comunicados?.length ? payload.comunicados : demoLanding.comunicados,
         noticias: payload?.noticias?.length ? payload.noticias : demoLanding.noticias,
-        votaciones: votacionesReales.length > 0 ? votacionesReales : demoLanding.votaciones,
+        votaciones,
         pagos: payload?.pagos?.length ? payload.pagos : demoLanding.pagos,
         asambleas: payload?.asambleas?.length ? payload.asambleas : demoLanding.asambleas,
         directiva: payload?.directiva?.length ? payload.directiva : demoLanding.directiva
@@ -273,14 +243,29 @@ export default function LandingPage() {
     }
   };
 
+  const isValidEvent = (item) => {
+    const titulo = String(item?.titulo || '').trim();
+    const descripcion = String(item?.descripcion || '').trim();
+    const lugar = String(item?.lugar || '').trim();
+    return titulo.length > 2 && descripcion.length > 2 && lugar.length > 1;
+  };
+
   useEffect(() => {
     loadLanding();
-    // Prefetch rutas comunes después de cargar datos
-    setTimeout(() => {
-      prefetchRoute('/app');
-      prefetchRoute('/app/noticias');
-      prefetchRoute('/app/votaciones');
-    }, 2000);
+
+    const loadReuniones = async () => {
+      setReunionesLoading(true);
+      try {
+        const events = await dataService.reuniones();
+        setReuniones((events || []).filter(isValidEvent));
+      } catch {
+        setReuniones([]);
+      } finally {
+        setReunionesLoading(false);
+      }
+    };
+
+    loadReuniones();
   }, []);
 
   const realVotaciones = useMemo(() => {
@@ -310,10 +295,10 @@ export default function LandingPage() {
   }, [data, realVotaciones]);
 
   return (
-    <main className="min-h-screen bg-[#f7fbfd] text-slate-900">
+    <main className="min-h-screen bg-[linear-gradient(180deg,#f6fbfd_0%,#ffffff_34%,#eef7fb_100%)] text-slate-900">
       {/* Navbar */}
-      <section className="sticky top-0 z-50 border-b border-white/60 bg-white/80 backdrop-blur-xl">
-        <header className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
+      <section className="sticky top-0 z-50 border-b border-slate-200/70 bg-white/90 shadow-sm shadow-slate-900/5 backdrop-blur-xl">
+        <header className="mx-auto flex max-w-7xl items-center justify-between px-6 py-3">
           <Link to="/" className="flex items-center gap-2.5 group">
             <div className="relative h-11 w-11 rounded-xl bg-gradient-to-br from-neighbor-blue to-neighbor-green p-2 shadow-md group-hover:shadow-lg transition">
               <img src="/neighbor-logo.png" alt="Neighbord" className="h-full w-full object-contain invert" />
@@ -323,15 +308,20 @@ export default function LandingPage() {
               <p className="text-[10px] font-bold text-neighbor-green -mt-1">Más unión, mejor comunidad</p>
             </div>
           </Link>
-          <nav className="hidden items-center gap-8 text-sm font-bold text-slate-600 lg:flex">
+          <nav className="hidden items-center gap-7 text-sm font-bold text-slate-600 lg:flex">
             <a href="#caracteristicas" className="hover:text-neighbor-blue transition">Características</a>
             <a href="#actividad" className="hover:text-neighbor-blue transition">Actividad</a>
             <a href="#directiva" className="hover:text-neighbor-blue transition">Directiva</a>
             <a href="#contacto" className="hover:text-neighbor-blue transition">Contacto</a>
           </nav>
           <div className="flex items-center gap-3">
-            <Link to="/login" className="hidden rounded-lg border border-neighbor-blue/30 px-4 py-2 text-sm font-bold text-neighbor-blue transition hover:bg-neighbor-mist hover:border-neighbor-blue sm:inline-flex">Acceso</Link>
-            <Link to="/registro" className="btn-primary rounded-lg">Empezar →</Link>
+            {isAuthenticated ? (
+              <Link to="/app" className="hidden rounded-lg border border-neighbor-blue/30 px-4 py-2 text-sm font-bold text-neighbor-blue transition hover:bg-neighbor-mist hover:border-neighbor-blue sm:inline-flex">Ir al panel</Link>
+            ) : showGuestActions ? (
+              <Link to="/login" className="hidden rounded-lg border border-neighbor-blue/30 px-4 py-2 text-sm font-bold text-neighbor-blue transition hover:bg-neighbor-mist hover:border-neighbor-blue sm:inline-flex">Acceso</Link>
+            ) : null}
+            {showGuestActions && <Link to="/registro" className="btn-primary rounded-lg">Empezar &rarr;</Link>}
+            {isAuthenticated && <Link to="/app" className="btn-primary rounded-lg">Ir al panel</Link>}
             <button className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-slate-200 text-neighbor-navy lg:hidden hover:bg-slate-100 transition" aria-label="Abrir menu">
               <Menu className="h-5 w-5" />
             </button>
@@ -340,25 +330,25 @@ export default function LandingPage() {
       </section>
 
       {/* Hero Section */}
-      <SectionWrapper className="overflow-hidden bg-neighbor-mist">
-        <div className="mx-auto grid min-h-[72vh] max-w-7xl items-center gap-12 px-6 py-14 lg:grid-cols-[0.95fr_1.05fr]">
+      <SectionWrapper className="overflow-hidden border-b border-neighbor-blue/10 bg-[radial-gradient(circle_at_75%_30%,rgba(56,167,232,0.16),transparent_32%),linear-gradient(135deg,#eef7fb_0%,#ffffff_52%,#ecf8ef_100%)]">
+        <div className="mx-auto grid min-h-[72vh] max-w-7xl items-center gap-12 px-6 py-12 lg:grid-cols-[0.95fr_1.05fr] lg:py-16">
           <div>
-            <p className="text-sm font-black uppercase tracking-[0.24em] text-neighbor-green">Sistema comunitario real</p>
+            <p className="inline-flex rounded-full border border-neighbor-green/20 bg-white/80 px-4 py-2 text-xs font-black uppercase tracking-[0.2em] text-neighbor-green shadow-sm">Sistema comunitario real</p>
             <h1 className="mt-4 max-w-2xl text-5xl font-black leading-[1.02] text-neighbor-navy md:text-7xl">Junta de vecinos organizada en un solo lugar</h1>
             <p className="mt-6 max-w-2xl text-lg font-semibold leading-8 text-slate-700">
-              Neighbord conecta asambleas, votaciones, comunicados, noticias, cuotas, finanzas y directiva con datos reales para que la comunidad funcione con claridad.
+              Neighbord transforma la gestión comunitaria en una experiencia moderna, transparente y conectada, reuniendo comunicación, decisiones, finanzas y organización en un solo lugar.
             </p>
-            <p className="mt-4 inline-flex items-center rounded-full bg-white/80 px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm">
-              {loading ? 'Actualizando contenido comunitario...' : 'Información real y ejemplos demostrativos disponibles.'}
+            <p className="mt-5 inline-flex items-center rounded-full border border-neighbor-blue/10 bg-white/85 px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm">
+              {loading ? 'Actualizando contenido comunitario...' : dataStatus}
             </p>
             {isAuthenticated ? (
-              <div className="mt-6 rounded-3xl border border-neighbor-blue/20 bg-neighbor-blue/5 p-5 text-sm text-neighbor-navy">
+              <div className="mt-6 rounded-2xl border border-neighbor-blue/20 bg-white/70 p-5 text-sm text-neighbor-navy shadow-sm">
                 <p className="font-semibold">{greeting}</p>
                 <p className="mt-2">Accede al panel para gestionar tu sector, enviar solicitudes y participar en votaciones.</p>
               </div>
             ) : null}
             <div className="mt-8 flex flex-wrap gap-3">
-              <Link to="/registro" className="btn-primary px-5 py-3">Crear cuenta <ArrowRight className="h-4 w-4" /></Link>
+              {showGuestActions && <Link to="/registro" className="btn-primary px-5 py-3">Crear cuenta <ArrowRight className="h-4 w-4" /></Link>}
               {isAuthenticated ? (
                 <Link to="/app" className="btn-secondary px-5 py-3">Ir al panel</Link>
               ) : (
@@ -371,7 +361,7 @@ export default function LandingPage() {
                 ['Comunicados', 'Avisos oficiales'],
                 ['Finanzas', 'Cuentas visibles']
               ].map(([title, text]) => (
-                <div key={title} className="border-l-4 border-neighbor-green bg-white px-4 py-3 shadow-sm">
+                <div key={title} className="rounded-xl border border-slate-200/80 border-l-4 border-l-neighbor-green bg-white/85 px-4 py-3 shadow-sm">
                   <p className="font-black text-neighbor-navy">{title}</p>
                   <p className="mt-1 text-xs font-semibold text-slate-500">{text}</p>
                 </div>
@@ -379,7 +369,7 @@ export default function LandingPage() {
             </div>
           </div>
           <div className="order-1 flex justify-center lg:order-2">
-            <div className="w-full max-w-xl bg-white p-8 shadow-soft">
+            <div className="w-full max-w-xl border border-white bg-white/90 p-8 shadow-soft backdrop-blur">
               <img src="/neighbor-logo.png" alt="Logo Neighbord" className="mx-auto max-h-[460px] w-full object-contain" />
             </div>
           </div>
@@ -418,7 +408,7 @@ export default function LandingPage() {
               [Vote, 'Votaciones Transparentes', 'Decisiones democráticas en tiempo real con resultados claros y participación segura.', 'from-blue-500 to-blue-600'],
               [Bell, 'Comunicados Efectivos', 'Avisos oficiales que llegan a todos, categorizados y organizados para fácil acceso.', 'from-indigo-500 to-indigo-600'],
               [PieChart, 'Finanzas Claras', 'Dashboard completo de ingresos, egresos, cuotas y reportes auditables.', 'from-purple-500 to-purple-600'],
-              [Users, 'Directiva Conectada', 'Gestión de roles, perfiles y comunicación directa con la administración.', 'from-pink-500 to-pink-600'],
+              [Users, 'Junta Ejecutiva Conectada', 'Gestión de roles, perfiles y comunicación directa con la administración.', 'from-pink-500 to-pink-600'],
               [FileText, 'Documentos Centralizados', 'Biblioteca digital de actas, resoluciones y documentos importantes.', 'from-orange-500 to-orange-600'],
               [MapPin, 'Mapa Interactivo', 'Ubicación del sector, puntos clave e información de acceso.', 'from-green-500 to-green-600'],
             ].map(([Icon, title, text, color]) => (
@@ -435,7 +425,7 @@ export default function LandingPage() {
       </SectionWrapper>
 
       {/* Votaciones Section */}
-      <SectionWrapper className="py-20 bg-white/30 backdrop-blur-sm" delay={600}>
+      <SectionWrapper id="actividad" className="py-20 bg-white/30 backdrop-blur-sm" delay={60}>
         <div className="mx-auto max-w-7xl px-6">
           <div className="flex flex-wrap items-center justify-between gap-4 mb-12">
             <div>
@@ -503,48 +493,50 @@ export default function LandingPage() {
                       <p className="mt-1 text-sm text-slate-600">{item.descripcion || 'Disponible para votar'}</p>
                     </div>
 
-                    {item.opciones_stats && item.opciones_stats.length > 0 && (
+                    {item.mi_voto ? (
                       <div className="space-y-3">
-                        <p className="text-xs font-bold text-slate-500 uppercase">Resultados en vivo ({item.total_votos || 0} votos)</p>
+                        <p className="text-xs font-bold text-slate-500 uppercase">Tu voto guardado</p>
                         <div className="space-y-2">
-                          {item.opciones_stats.slice(0, 3).map((stat) => (
-                            <div key={stat.opcion} className="space-y-1">
-                              <div className="flex justify-between items-center text-xs">
-                                <span className="font-semibold text-slate-700">{optionLabel(stat.opcion)}</span>
-                                <span className="font-bold text-neighbor-blue bg-blue-50 px-2 py-0.5 rounded">{stat.percentage}%</span>
+                          {voteOptions.map((opcion) => {
+                            const isSelected = opcion === item.mi_voto;
+                            return (
+                              <div key={opcion} className="space-y-1">
+                                <div className="flex justify-between items-center text-xs">
+                                  <span className={`font-semibold ${isSelected ? 'text-neighbor-blue' : 'text-slate-500'}`}>{optionLabel(opcion)}</span>
+                                  {isSelected ? (
+                                    <span className="font-bold text-neighbor-blue">100%</span>
+                                  ) : (
+                                    <span className="text-slate-400">0%</span>
+                                  )}
+                                </div>
+                                <div className="h-2 overflow-hidden rounded-full bg-slate-100">
+                                  <div className={`h-full rounded-full ${isSelected ? 'bg-gradient-to-r from-neighbor-blue to-neighbor-green' : 'bg-slate-200'}`} style={{ width: isSelected ? '100%' : '0%' }} />
+                                </div>
                               </div>
-                              <div className="h-2 overflow-hidden rounded-full bg-slate-100">
-                                <div className="h-full rounded-full bg-gradient-to-r from-neighbor-blue to-neighbor-green transition-all duration-500" style={{ width: `${stat.percentage}%` }} />
-                              </div>
-                            </div>
-                          ))}
+                            );
+                          })}
                         </div>
                       </div>
-                    )}
-
-                    {voteOptions.length > 0 && (
+                    ) : voteOptions.length > 0 && (
                       <div className="space-y-3">
                         <p className="text-xs font-bold text-slate-500 uppercase">Elige tu opción</p>
                         <div className="grid gap-2">
                           {voteOptions.map((opcion) => {
                             const label = optionLabel(opcion);
-                            const selected = selectedOptions[item.id] === opcion;
+                            const selected = item.mi_voto ? item.mi_voto === opcion : selectedOptions[item.id] === opcion;
                             return (
                               <button
                                 key={opcion}
                                 type="button"
                                 onClick={() => setSelectedOptions((prev) => ({ ...prev, [item.id]: opcion }))}
-                                disabled={isDemoId(item.id)}
-                                className={`w-full rounded-2xl border px-3 py-2 text-left text-sm font-semibold transition ${selected ? 'border-neighbor-blue bg-neighbor-blue/10 text-neighbor-navy' : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'} ${isDemoId(item.id) ? 'cursor-not-allowed opacity-70' : ''}`}
+                                disabled={Boolean(item.mi_voto)}
+                                className={`w-full rounded-2xl border px-3 py-2 text-left text-sm font-semibold transition ${selected ? 'border-neighbor-blue bg-neighbor-blue/10 text-neighbor-navy' : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'} ${item.mi_voto ? 'cursor-not-allowed opacity-70' : ''}`}
                               >
                                 {label}
                               </button>
                             );
                           })}
                         </div>
-                        {isDemoId(item.id) && (
-                          <p className="text-xs text-slate-500">Esta votación es de demostración y no se puede enviar al servidor.</p>
-                        )}
                       </div>
                     )}
 
@@ -552,10 +544,19 @@ export default function LandingPage() {
                       {voteOptions.length > 0 && (
                         <button
                           onClick={() => handleVote(item.id)}
-                          disabled={voting[item.id] || isDemoId(item.id)}
+                          disabled={voting[item.id] || Boolean(item.mi_voto)}
                           className="flex-1 px-3 py-2 text-xs font-bold rounded-lg bg-gradient-to-r from-neighbor-blue to-neighbor-green text-white hover:shadow-lg hover:scale-105 transition disabled:opacity-50 disabled:cursor-not-allowed"
                         >
-                          {voting[item.id] ? 'Votando...' : 'Votar'}
+                          {item.mi_voto ? 'Ya votaste' : voting[item.id] ? 'Votando...' : 'Votar'}
+                        </button>
+                      )}
+                      {item.mi_voto && (
+                        <button
+                          onClick={() => handleCancelVote(item.id)}
+                          disabled={voting[item.id]}
+                          className="flex-1 px-3 py-2 text-xs font-bold rounded-lg border border-slate-200 text-slate-700 hover:bg-slate-50 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          Cancelar voto
                         </button>
                       )}
                       <Link to="/app/votaciones" className="flex-1 px-3 py-2 text-xs font-bold rounded-lg border border-neighbor-blue/30 text-neighbor-blue hover:bg-neighbor-mist transition text-center">
@@ -635,14 +636,21 @@ export default function LandingPage() {
             </div>
             <Link to="/app/noticias" className="btn-secondary px-5 py-3">Ver todas las noticias</Link>
           </div>
-          <div className="grid gap-8">
+          <div className="grid gap-6 lg:grid-cols-2">
             {loading ? (
               Array.from({ length: 3 }).map((_, i) => (
                 <SkeletonCard key={i} className="bg-white/60 backdrop-blur-sm rounded-2xl border border-white/80 p-6" />
               ))
             ) : (
-              data.noticias.slice(0, 3).map((item) => (
-                <NewsCardWithComments key={item.id} news={item} />
+              data.noticias.slice(0, 3).map((item, index) => (
+                <div
+                  key={item.id}
+                  className={index === 2 ? 'lg:col-span-2 flex justify-center' : ''}
+                >
+                  <div className={index === 2 ? 'w-full max-w-2xl' : 'w-full'}>
+                    <NewsCardWithComments news={item} />
+                  </div>
+                </div>
               ))
             )}
           </div>
@@ -703,8 +711,8 @@ export default function LandingPage() {
           <div className="flex flex-wrap items-center justify-between gap-4 mb-12">
             <div>
               <p className="text-sm font-bold text-neighbor-green uppercase tracking-wider">Asambleas</p>
-              <h2 className="mt-3 text-4xl font-black text-neighbor-navy">Asambleas y reuniones programadas</h2>
-              <p className="mt-4 max-w-2xl text-lg text-slate-600">Fechas oficiales de reuniones y asambleas para la comunidad.</p>
+              <h2 className="mt-3 text-4xl font-black text-neighbor-navy">Asambleas programadas</h2>
+              <p className="mt-4 max-w-2xl text-lg text-slate-600">Fechas oficiales de asambleas comunitarias.</p>
             </div>
             <Link to="/app/reuniones" className="btn-secondary px-5 py-3">Ver todas las reuniones</Link>
           </div>
@@ -714,11 +722,11 @@ export default function LandingPage() {
                 <SkeletonCard key={i} className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm" />
               ))
             ) : (
-              data.asambleas.slice(0, 6).map((item) => (
+              data.asambleas.filter(isValidEvent).slice(0, 6).map((item) => (
                 <div key={item.id} className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
                   <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-[0.24em] text-neighbor-green">
                     <CalendarDays className="h-4 w-4" />
-                    {item.tipo === 'general' ? 'Asamblea' : 'Reunión'}
+                    Asamblea
                   </div>
                   <h3 className="mt-3 text-xl font-black text-neighbor-navy">{item.titulo}</h3>
                   <p className="mt-3 text-sm leading-6 text-slate-600">{item.descripcion}</p>
@@ -731,115 +739,51 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* Pagos Section */}
-      <SectionWrapper className="py-20 bg-white/30 backdrop-blur-sm" delay={1600}>
+      {/* Reuniones Section */}
+      <section className="py-20 bg-white" id="reuniones">
         <div className="mx-auto max-w-7xl px-6">
           <div className="flex flex-wrap items-center justify-between gap-4 mb-12">
             <div>
-              <p className="text-sm font-bold text-neighbor-green uppercase tracking-wider">Pagos comunitarios</p>
-              <h2 className="mt-3 text-4xl font-black text-neighbor-navy">Aporte real para necesidades vecinales</h2>
-              <p className="mt-4 max-w-2xl text-lg text-slate-600">Registra aquí un pago para una causa comunitaria y guarda el aporte en la base de datos.</p>
+              <p className="text-sm font-bold text-neighbor-green uppercase tracking-wider">Reuniones</p>
+              <h2 className="mt-3 text-4xl font-black text-neighbor-navy">Reuniones programadas</h2>
+              <p className="mt-4 max-w-2xl text-lg text-slate-600">Encuentros planificados para directiva, comités y grupos de trabajo.</p>
             </div>
-            <Link to="/app/pagos" className="btn-secondary px-5 py-3">Ir a la gestión de pagos</Link>
+            <Link to="/app/reuniones" className="btn-secondary px-5 py-3">Ver todas las reuniones</Link>
           </div>
-
-          {paymentMessage && <div className="mb-6 rounded-xl bg-green-50 border border-green-200 p-4 text-sm font-semibold text-green-700">{paymentMessage}</div>}
-          {paymentError && <div className="mb-6 rounded-xl bg-red-50 border border-red-200 p-4 text-sm font-semibold text-red-700">{paymentError}</div>}
-
-          <div className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
-            <form onSubmit={handlePaymentSubmit} className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm space-y-4">
-              <div>
-                <label className="text-sm font-bold text-slate-700">Motivo del pago</label>
-                <input
-                  className="input mt-2 w-full"
-                  placeholder="Ayuda para ropa, traslado, comida, etc."
-                  value={paymentForm.concepto}
-                  onChange={(e) => setPaymentForm({ ...paymentForm, concepto: e.target.value })}
-                  required
-                />
-              </div>
-              <div className="grid gap-4 lg:grid-cols-2">
-                <div>
-                  <label className="text-sm font-bold text-slate-700">Monto</label>
-                  <input
-                    className="input mt-2 w-full"
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    value={paymentForm.monto}
-                    onChange={(e) => setPaymentForm({ ...paymentForm, monto: e.target.value })}
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="text-sm font-bold text-slate-700">Fecha</label>
-                  <input
-                    className="input mt-2 w-full"
-                    type="date"
-                    value={paymentForm.fecha_pago}
-                    onChange={(e) => setPaymentForm({ ...paymentForm, fecha_pago: e.target.value })}
-                    required
-                  />
-                </div>
-              </div>
-              <div className="grid gap-4 lg:grid-cols-2">
-                <div>
-                  <label className="text-sm font-bold text-slate-700">Método</label>
-                  <select
-                    className="input mt-2 w-full"
-                    value={paymentForm.metodo}
-                    onChange={(e) => setPaymentForm({ ...paymentForm, metodo: e.target.value })}
-                  >
-                    <option value="transferencia">Transferencia</option>
-                    <option value="efectivo">Efectivo</option>
-                    <option value="deposito">Depósito</option>
-                    <option value="otro">Otro</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="text-sm font-bold text-slate-700">Referencia</label>
-                  <input
-                    className="input mt-2 w-full"
-                    placeholder="Número de operación o nota"
-                    value={paymentForm.referencia}
-                    onChange={(e) => setPaymentForm({ ...paymentForm, referencia: e.target.value })}
-                  />
-                </div>
-              </div>
-              <div className="flex flex-col gap-3 sm:flex-row">
-                <button className="btn-primary w-full py-3">Registrar aporte</button>
-                {!user && (
-                  <Link to="/login" className="btn-secondary w-full py-3 text-center">Iniciar sesión</Link>
-                )}
-              </div>
-            </form>
-
-            <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
-              <p className="text-sm font-bold uppercase tracking-[0.24em] text-neighbor-green">Solicitudes recientes</p>
-              <h3 className="mt-3 text-2xl font-black text-neighbor-navy">Pagos registrados</h3>
-              <p className="mt-4 text-sm text-slate-600">Últimos aportes y solicitudes guardadas en la base.</p>
-              <div className="mt-6 space-y-4">
-                {data.pagos.slice(0, 6).map((pago) => (
-                  <div key={pago.id} className="rounded-3xl border border-slate-200 bg-slate-50 p-4">
-                    <p className="text-xs font-bold uppercase tracking-[0.18em] text-slate-500">{pago.metodo}</p>
-                    <h4 className="mt-2 font-black text-neighbor-navy line-clamp-2">{pago.concepto}</h4>
-                    <p className="mt-2 text-sm text-slate-600">RD$ {Number(pago.monto).toFixed(2)}</p>
-                    <p className="mt-1 text-xs text-slate-500">{pago.fecha_pago}</p>
+          <div className="grid gap-6 lg:grid-cols-3">
+            {reunionesLoading ? (
+              Array.from({ length: 6 }).map((_, i) => (
+                <SkeletonCard key={i} className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm" />
+              ))
+            ) : reuniones.length > 0 ? (
+              reuniones.slice(0, 6).map((item) => (
+                <div key={item.id} className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+                  <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-[0.24em] text-neighbor-green">
+                    <CalendarDays className="h-4 w-4" />
+                    {item.tipo === 'general' ? 'Asamblea' : 'Reunión'}
                   </div>
-                ))}
-                {!data.pagos.length && <p className="text-sm text-slate-500">No hay pagos registrados aún.</p>}
+                  <h3 className="mt-3 text-xl font-black text-neighbor-navy">{item.titulo}</h3>
+                  <p className="mt-3 text-sm leading-6 text-slate-600">{item.descripcion}</p>
+                  <p className="mt-4 text-xs uppercase tracking-[0.18em] text-slate-500">{dateTime(item.fecha)}</p>
+                  <p className="mt-2 text-xs text-slate-500">{item.lugar}</p>
+                </div>
+              ))
+            ) : (
+              <div className="rounded-2xl border-2 border-dashed border-slate-300 p-12 text-center lg:col-span-3">
+                <CalendarDays className="h-12 w-12 text-slate-300 mx-auto mb-3" />
+                <p className="text-slate-500 font-semibold">No hay reuniones válidas para mostrar.</p>
               </div>
-            </div>
+            )}
           </div>
         </div>
-      </SectionWrapper>
+      </section>
 
       {/* Directiva Section */}
       <SectionWrapper id="directiva" className="py-20 bg-white/30 backdrop-blur-sm" delay={1800}>
         <div className="mx-auto max-w-7xl px-6">
           <div className="text-center max-w-2xl mx-auto mb-12">
             <p className="text-sm font-bold text-neighbor-green uppercase tracking-wider">administración</p>
-            <h2 className="mt-3 text-4xl font-black text-neighbor-navy">Junta directiva</h2>
+            <h2 className="mt-3 text-4xl font-black text-neighbor-navy">Junta ejecutiva</h2>
             <p className="mt-3 text-lg text-slate-600">Los encargados de mantener organizada nuestra comunidad</p>
           </div>
 
@@ -905,22 +849,27 @@ export default function LandingPage() {
       {/* CTA Section */}
       <SectionWrapper className="py-20" delay={2000}>
         <div className="mx-auto max-w-4xl px-6">
-          <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-neighbor-blue via-teal-500 to-neighbor-green p-12 md:p-16 shadow-2xl">
-            <div className="absolute inset-0 opacity-10">
-              <div className="absolute top-0 right-0 h-40 w-40 rounded-full bg-white blur-3xl" />
-              <div className="absolute bottom-0 left-0 h-40 w-40 rounded-full bg-white blur-3xl" />
-            </div>
+          <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-neighbor-blue via-teal-500 to-neighbor-green p-12 shadow-2xl md:p-16">
             <div className="relative text-center space-y-6">
               <h2 className="text-4xl md:text-5xl font-black text-white">¿Listo para conectar tu comunidad?</h2>
               <p className="text-lg text-white/90 max-w-xl mx-auto">Únete a cientos de comunidades que ya están organizadas con Neighbord</p>
               <div className="flex flex-wrap gap-3 justify-center pt-4">
-                <Link to="/registro" className="inline-flex items-center gap-2 bg-white text-neighbor-blue px-6 py-3 rounded-lg font-bold hover:scale-105 transition shadow-lg">
-                  Crear cuenta gratis
-                  <ArrowRight className="h-5 w-5" />
-                </Link>
-                <button className="inline-flex items-center gap-2 border-2 border-white text-white px-6 py-3 rounded-lg font-bold hover:bg-white/10 transition">
-                  Ver demo
-                </button>
+                {isAuthenticated ? (
+                  <Link to="/app" className="inline-flex items-center gap-2 bg-white text-neighbor-blue px-6 py-3 rounded-lg font-bold hover:scale-105 transition shadow-lg">
+                    Ir al panel
+                    <ArrowRight className="h-5 w-5" />
+                  </Link>
+                ) : showGuestActions ? (
+                  <>
+                    <Link to="/registro" className="inline-flex items-center gap-2 bg-white text-neighbor-blue px-6 py-3 rounded-lg font-bold hover:scale-105 transition shadow-lg">
+                      Crear cuenta gratis
+                      <ArrowRight className="h-5 w-5" />
+                    </Link>
+                    <button className="inline-flex items-center gap-2 border-2 border-white text-white px-6 py-3 rounded-lg font-bold hover:bg-white/10 transition">
+                      Ver demo
+                    </button>
+                  </>
+                ) : null}
               </div>
             </div>
           </div>
@@ -954,13 +903,28 @@ export default function LandingPage() {
             <div>
               <h3 className="font-black text-sm uppercase tracking-wider mb-4 text-white">Acceso</h3>
               <div className="space-y-2.5 text-sm">
-                <Link to="/login" className="text-white/75 hover:text-white transition">Iniciar sesión</Link>
-                <Link to="/registro" className="text-white/75 hover:text-white transition block">Registrarse</Link>
+                {isAuthenticated ? (
+                  <Link to="/app" className="text-white/75 hover:text-white transition">Ir al panel</Link>
+                ) : showGuestActions ? (
+                  <>
+                    <Link to="/login" className="text-white/75 hover:text-white transition">Iniciar sesión</Link>
+                    <Link to="/registro" className="text-white/75 hover:text-white transition block">Registrarse</Link>
+                  </>
+                ) : null}
               </div>
             </div>
             <div>
               <h3 className="font-black text-sm uppercase tracking-wider mb-4 text-white">Contacto</h3>
               <div className="space-y-2.5 text-sm text-white/75">
+                <a
+                  href={whatsappUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-2 text-white/75 transition hover:text-white"
+                >
+                  <MessageCircle className="h-4 w-4 text-neighbor-green" />
+                  WhatsApp directo
+                </a>
                 <p className="flex items-center gap-2">
                   <Mail className="h-4 w-4 text-neighbor-green" />
                   info@neighbord.local
@@ -1033,7 +997,7 @@ function NewsCard({ news }) {
     if (!newComment.trim()) return;
     const comment = {
       id: Date.now().toString(),
-      autor: user.nombre,
+      autor: userName,
       comentario: newComment,
       fecha: new Date().toISOString()
     };
@@ -1043,8 +1007,8 @@ function NewsCard({ news }) {
 
   return (
     <article className="rounded-3xl border border-slate-200 bg-white overflow-hidden shadow-sm hover:shadow-lg transition">
-      {news.imagen_url && (
-        <div className="aspect-video overflow-hidden bg-gradient-to-br from-neighbor-blue/10 to-emerald-100">
+      <div className="h-56 overflow-hidden bg-gradient-to-br from-neighbor-blue/10 to-emerald-100 sm:h-60 lg:h-64">
+        {news.imagen_url ? (
           <LazyImage
             src={mediaUrl(news.imagen_url)}
             alt={news.titulo}
@@ -1055,9 +1019,15 @@ function NewsCard({ news }) {
               </div>
             )}
           />
-        </div>
-      )}
-      <div className="p-8">
+        ) : (
+          <div className="h-full w-full bg-gradient-to-br from-neighbor-blue to-neighbor-green flex items-center justify-center text-white">
+            <div className="rounded-3xl bg-white/10 p-6 shadow-lg">
+              <Newspaper className="h-16 w-16" />
+            </div>
+          </div>
+        )}
+      </div>
+      <div className="p-6">
         <div className="flex items-center justify-between mb-4">
           <span className="inline-flex items-center gap-2 rounded-full bg-neighbor-mist px-3 py-1 text-xs font-bold text-neighbor-blue">
             <Newspaper className="h-3 w-3" />
@@ -1176,7 +1146,7 @@ function NewsCardWithComments({ news }) {
       'Gracias por pensar en el bienestar de todos.'
     ];
 
-    return Array.from({ length: 5 }, (_, index) => ({
+    return Array.from({ length: 3 }, (_, index) => ({
       id: `${news.id}-comment-${index}`,
       autor: nombres[Math.floor(Math.random() * nombres.length)],
       comentario: comentariosBase[Math.floor(Math.random() * comentariosBase.length)],
@@ -1200,8 +1170,8 @@ function NewsCardWithComments({ news }) {
 
   return (
     <article className="rounded-3xl border border-slate-200 bg-white overflow-hidden shadow-sm hover:shadow-lg transition">
-      {news.imagen_url && (
-        <div className="aspect-video overflow-hidden bg-gradient-to-br from-neighbor-blue/10 to-emerald-100">
+      <div className="h-52 overflow-hidden bg-gradient-to-br from-neighbor-blue/10 to-emerald-100 sm:h-56 lg:h-60">
+        {news.imagen_url ? (
           <LazyImage
             src={mediaUrl(news.imagen_url)}
             alt={news.titulo}
@@ -1212,9 +1182,15 @@ function NewsCardWithComments({ news }) {
               </div>
             )}
           />
-        </div>
-      )}
-      <div className="p-8">
+        ) : (
+          <div className="h-full w-full bg-gradient-to-br from-neighbor-blue to-neighbor-green flex items-center justify-center text-white">
+            <div className="rounded-3xl bg-white/10 p-6 shadow-lg">
+              <Newspaper className="h-16 w-16" />
+            </div>
+          </div>
+        )}
+      </div>
+      <div className="p-4">
         <div className="flex items-center justify-between mb-4">
           <span className="inline-flex items-center gap-2 rounded-full bg-neighbor-mist px-3 py-1 text-xs font-bold text-neighbor-blue">
             <Newspaper className="h-3 w-3" />
@@ -1228,19 +1204,19 @@ function NewsCardWithComments({ news }) {
             })}
           </span>
         </div>
-        <h3 className="text-2xl font-black text-neighbor-navy mb-3">{news.titulo}</h3>
-        <p className="text-slate-600 leading-relaxed mb-6">{news.resumen || news.contenido}</p>
+        <h3 className="text-lg font-black text-neighbor-navy mb-3">{news.titulo}</h3>
+        <p className="text-sm text-slate-600 leading-relaxed mb-4">{news.resumen || news.contenido}</p>
         
         {/* Comentarios Section */}
-        <div className="pt-6 border-t border-slate-100">
-          <div className="mb-6">
-            <div className="flex items-center gap-2 mb-6">
+        <div className="pt-4 border-t border-slate-100">
+          <div className="mb-4">
+            <div className="flex items-center gap-2 mb-4">
               <MessageCircle className="h-5 w-5 text-neighbor-blue" />
               <h4 className="text-lg font-black text-neighbor-navy">{comments.length} comentarios</h4>
             </div>
             
             {/* Comments List */}
-            <div className="space-y-4 mb-8 max-h-96 overflow-y-auto">
+            <div className="space-y-3 mb-6 max-h-64 overflow-y-auto">
               {comments.map((comment) => (
                 <div key={comment.id} className="flex gap-3 pb-4 border-b border-slate-100 last:border-0">
                   <div className="h-9 w-9 rounded-full bg-gradient-to-br from-neighbor-blue to-neighbor-green flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
@@ -1297,7 +1273,7 @@ function NewsCardWithComments({ news }) {
           </div>
 
           {/* Link to full article */}
-          <div className="flex justify-end pt-4">
+          <div className="flex justify-end pt-3">
             <Link to={`/app/noticias/${news.id}`} className="text-sm font-semibold text-neighbor-blue hover:text-neighbor-green transition flex items-center gap-2">
               Ver noticia completa <ArrowRight className="h-4 w-4" />
             </Link>
@@ -1353,8 +1329,8 @@ function NewsCardDiscussion({ news }) {
 
   return (
     <article className="rounded-3xl border border-slate-200 bg-white overflow-hidden shadow-sm hover:shadow-lg transition">
-      {news.imagen_url && (
-        <div className="aspect-video overflow-hidden bg-gradient-to-br from-neighbor-blue/10 to-emerald-100">
+      <div className="h-52 overflow-hidden bg-gradient-to-br from-neighbor-blue/10 to-emerald-100 sm:h-56 lg:h-60">
+        {news.imagen_url ? (
           <LazyImage
             src={mediaUrl(news.imagen_url)}
             alt={news.titulo}
@@ -1365,9 +1341,15 @@ function NewsCardDiscussion({ news }) {
               </div>
             )}
           />
-        </div>
-      )}
-      <div className="p-8">
+        ) : (
+          <div className="h-full w-full bg-gradient-to-br from-neighbor-blue to-neighbor-green flex items-center justify-center text-white">
+            <div className="rounded-3xl bg-white/10 p-6 shadow-lg">
+              <Newspaper className="h-16 w-16" />
+            </div>
+          </div>
+        )}
+      </div>
+      <div className="p-6">
         <div className="flex items-center justify-between mb-4">
           <span className="inline-flex items-center gap-2 rounded-full bg-neighbor-mist px-3 py-1 text-xs font-bold text-neighbor-blue">
             <Newspaper className="h-3 w-3" />
@@ -1413,30 +1395,30 @@ function NewsCardDiscussion({ news }) {
             ))}
           </div>
 
-          <div className="bg-slate-50 rounded-2xl p-4">
-            <div className="flex gap-3 mb-3">
-              <div className="h-9 w-9 rounded-full bg-gradient-to-br from-neighbor-blue to-neighbor-green flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
+          <div className="bg-slate-50 rounded-2xl p-3">
+            <div className="flex gap-3 mb-2">
+              <div className="h-8 w-8 rounded-full bg-gradient-to-br from-neighbor-blue to-neighbor-green flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
                 {userName.charAt(0)}
               </div>
               <textarea
                 value={newComment}
                 onChange={(e) => setNewComment(e.target.value)}
                 placeholder="¿Qué opinas de esta noticia?"
-                className="flex-1 p-3 border border-slate-200 rounded-lg text-sm resize-none focus:border-neighbor-blue focus:outline-none"
+                className="flex-1 p-2 border border-slate-200 rounded-lg text-sm resize-none focus:border-neighbor-blue focus:outline-none"
                 rows="2"
               />
             </div>
             <div className="flex justify-end gap-2">
               <button
                 onClick={() => setNewComment('')}
-                className="px-4 py-2 text-slate-700 text-sm font-semibold rounded-lg hover:bg-slate-200 transition"
+                className="px-3 py-1 text-slate-700 text-sm font-semibold rounded-lg hover:bg-slate-200 transition"
               >
                 Cancelar
               </button>
               <button
                 onClick={handleAddComment}
                 disabled={!newComment.trim()}
-                className="px-4 py-2 bg-neighbor-blue text-white text-sm font-semibold rounded-lg hover:bg-neighbor-green transition disabled:opacity-50 disabled:cursor-not-allowed"
+                className="px-3 py-1 bg-neighbor-blue text-white text-sm font-semibold rounded-lg hover:bg-neighbor-green transition disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Comentar
               </button>

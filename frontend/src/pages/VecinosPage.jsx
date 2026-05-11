@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { Badge, EmptyState, Spinner } from '../components/common';
 import { dataService } from '../services/api';
 import { useAuth } from '../context/AuthContext';
+import { roleLabel } from '../lib/utils';
 
 export default function VecinosPage() {
   const { hasRole } = useAuth();
@@ -72,7 +73,7 @@ export default function VecinosPage() {
             </thead>
             <tbody>{rows.map((row) => (
               <tr key={row.id} className="border-t border-slate-100">
-                <td className="p-3 font-semibold">{row.nombre}</td><td>{row.email}</td><td>{row.direccion}</td><td>{row.rol}</td><td><Badge>{row.estado}</Badge></td>
+                <td className="p-3 font-semibold">{row.nombre}</td><td>{row.email}</td><td>{row.direccion}</td><td>{roleLabel[row.rol] || row.rol}</td><td><Badge>{row.estado}</Badge></td>
                 <td className="p-3">
                   <div className="flex flex-wrap gap-2">
                     {row.estado === 'pendiente' && <button className="btn-secondary" onClick={() => dataService.aprobarVecino(row.id).then(load)}><CheckCircle className="h-4 w-4" /> Aprobar</button>}
@@ -80,9 +81,10 @@ export default function VecinosPage() {
                       <>
                         <select className="input w-36" value={row.rol} onChange={(e) => dataService.cambiarRolVecino(row.id, e.target.value).then(load)}>
                           <option value="vecino">Vecino</option>
-                          <option value="directiva">Directiva</option>
+                          <option value="directiva">Vice Presidente</option>
                           <option value="tesorero">Tesorero</option>
-                          <option value="admin">Admin</option>
+                          <option value="vocero">Vocero</option>
+                          <option value="secretaria">Secretaria</option>
                         </select>
                         <button className="btn-secondary" onClick={() => edit(row)}>Editar</button>
                         <button className="btn border border-red-200 text-red-600 hover:bg-red-50" onClick={() => remove(row)}>Eliminar</button>

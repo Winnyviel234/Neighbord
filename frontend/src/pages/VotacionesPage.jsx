@@ -29,7 +29,12 @@ export default function VotacionesPage() {
   const [voting, setVoting] = useState(null);
   const [preview, setPreview] = useState(null);
 
-  const load = () => dataService.votaciones().then(setRows);
+  const load = () => dataService.votaciones()
+    .then(setRows)
+    .catch(() => {
+      setRows([]);
+      setError('No se pudieron cargar las votaciones reales.');
+    });
 
   useEffect(() => {
     load();
@@ -147,6 +152,21 @@ export default function VotacionesPage() {
     }
   }
 
+  async function cancelVote(row) {
+    try {
+      setError('');
+      setMessage('');
+      setVoting(row.id);
+      await dataService.cancelarVoto(row.id);
+      setMessage('Tu voto fue cancelado.');
+      load();
+    } catch (err) {
+      setError(err.response?.data?.detail || 'No se pudo cancelar el voto.');
+    } finally {
+      setVoting(null);
+    }
+  }
+
   function toggleCandidate(id) {
     const selected = form.candidatos.includes(id);
     setForm({ ...form, candidatos: selected ? form.candidatos.filter((item) => item !== id) : [...form.candidatos, id] });
@@ -204,7 +224,8 @@ export default function VotacionesPage() {
               <select className="input max-w-sm" value={form.rol_objetivo} onChange={(e) => setForm({ ...form, rol_objetivo: e.target.value })}>
                 <option value="directiva">Asignar rol Directiva</option>
                 <option value="tesorero">Asignar rol Tesorero</option>
-                <option value="admin">Asignar rol Admin</option>
+                <option value="vocero">Asignar rol Vocero</option>
+                <option value="secretaria">Asignar rol Secretaria</option>
                 <option value="vecino">Asignar rol Vecino</option>
               </select>
               <div className="mt-3 grid gap-2 md:grid-cols-2">
@@ -230,6 +251,7 @@ export default function VotacionesPage() {
         {rows.length ? rows.map((row) => {
           const isElection = (row.opciones || []).some((option) => parseElectionOption(option));
           const isActive = row.estado === 'activa';
+          const hasVoted = Boolean(row.mi_voto);
           return (
             <article key={row.id} className="card overflow-hidden p-0 flex flex-col">
               {row.imagen_url && (
@@ -271,6 +293,11 @@ export default function VotacionesPage() {
               <div className="border-t border-slate-100 bg-white p-4">
                 {isActive ? (
                   <div className="flex flex-wrap gap-2">
+                    {hasVoted && (
+                      <p className="w-full rounded-md bg-green-50 p-2 text-xs font-bold text-green-700">
+                        Ya votaste: {optionLabel(row.mi_voto)}
+                      </p>
+                    )}
                     {(row.opciones || []).map((op) => (
                       <button
                         key={op}
@@ -286,12 +313,22 @@ export default function VotacionesPage() {
                             setVoting(null);
                           }
                         }}
-                        disabled={voting === row.id}
-                        className="btn-secondary"
+                        disabled={voting === row.id || hasVoted}
+                        className={hasVoted && row.mi_voto === op ? 'btn-primary' : 'btn-secondary'}
                       >
                         {optionLabel(op)}
                       </button>
                     ))}
+                    {isActive && hasVoted && (
+                      <button
+                        type="button"
+                        onClick={() => cancelVote(row)}
+                        disabled={voting === row.id}
+                        className="btn-secondary btn-sm"
+                      >
+                        Cancelar voto
+                      </button>
+                    )}
                   </div>
                 ) : (
                   <p className="text-xs font-semibold text-slate-400">Votacion cerrada</p>
@@ -341,8 +378,10 @@ function optionLabel(option) {
 function roleLabel(role) {
   return {
     admin: 'Admin',
-    directiva: 'Directiva',
+    directiva: 'Vice Presidente',
     tesorero: 'Tesorero',
+    vocero: 'Vocero',
+    secretaria: 'Secretaria',
     vecino: 'Vecino'
   }[role] || role;
 }

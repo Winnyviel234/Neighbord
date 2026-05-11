@@ -73,7 +73,8 @@ class SupabaseTable:
 
     def select(self, columns: str = "*"):
         self.method = "GET"
-        self.params["select"] = columns
+        cleaned_columns = re.sub(r"\s+", " ", columns).strip()
+        self.params["select"] = cleaned_columns
         return self
 
     def insert(self, data: dict | list[dict]):
@@ -127,27 +128,42 @@ class SupabaseTable:
         self.headers["Accept"] = "application/vnd.pgrst.object+json"
         return self
 
+    def _reset(self):
+        self.method = "GET"
+        self.payload = None
+        self.params = {}
+        self.headers = {}
+
     def execute(self) -> SupabaseResult:
-        with httpx.Client(timeout=20) as client:
-            response = client.request(
-                self.method,
-                self._url(),
-                params=self.params,
-                json=self.payload,
-                headers=self._base_headers(),
-            )
-        if response.status_code >= 400:
-            if response.status_code == 406 and self.headers.get("Accept"):
+        method = self.method
+        headers = self._base_headers()
+        accepts_single = bool(self.headers.get("Accept"))
+        try:
+            with httpx.Client(timeout=20) as client:
+                response = client.request(
+                    method,
+                    self._url(),
+                    params=dict(self.params),
+                    json=self.payload,
+                    headers=headers,
+                )
+            if response.status_code >= 400:
+                if response.status_code == 406 and accepts_single:
+                    return SupabaseResult(None)
+                if response.status_code == 404 and method == "GET":
+                    # Missing table or view in Supabase can happen in dev; return safe fallback rather than crashing.
+                    return SupabaseResult(None if accepts_single else [])
+                response.raise_for_status()
+            if not response.content:
+                if method == "DELETE":
+                    return SupabaseResult([{"deleted": True}])
                 return SupabaseResult(None)
-            response.raise_for_status()
-        if not response.content:
-            if self.method == "DELETE":
+            data = response.json()
+            if method == "DELETE" and data == []:
                 return SupabaseResult([{"deleted": True}])
-            return SupabaseResult(None)
-        data = response.json()
-        if self.method == "DELETE" and data == []:
-            return SupabaseResult([{"deleted": True}])
-        return SupabaseResult(data)
+            return SupabaseResult(data)
+        finally:
+            self._reset()
 
 
 def table(name: str):

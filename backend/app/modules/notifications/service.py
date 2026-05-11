@@ -12,6 +12,35 @@ class NotificationService:
         """Get user notifications"""
         notifications = await self.repo.get_user_notifications(user_id, unread_only)
         return [NotificationResponse(**n) for n in notifications]
+
+    async def get_user_preferences(self, user_id: UUID) -> Dict[str, Any]:
+        """Get or create notification preferences"""
+        prefs = await self.repo.get_user_preferences(user_id)
+        if prefs:
+            return prefs
+
+        default_prefs = {
+            "usuario_id": str(user_id),
+            "votaciones": True,
+            "reuniones": True,
+            "pagos": True,
+            "solicitudes": True,
+            "comunicados": True,
+            "directiva": True,
+            "chat": True,
+            "email_votaciones": True,
+            "email_reuniones": True,
+            "email_pagos": True,
+            "email_solicitudes": False,
+            "email_comunicados": True,
+            "email_directiva": False,
+            "email_chat": False
+        }
+        return await self.repo.save_user_preferences(user_id, default_prefs)
+
+    async def save_user_preferences(self, user_id: UUID, prefs: Dict[str, Any]) -> Dict[str, Any]:
+        """Save or update notification preferences"""
+        return await self.repo.save_user_preferences(user_id, prefs)
     
     async def get_notification(self, notification_id: UUID) -> NotificationResponse:
         """Get specific notification"""
@@ -25,7 +54,7 @@ class NotificationService:
         notification_data = {
             "user_id": str(user_id),
             "titulo": data.titulo,
-            "mensaje": data.contenido,
+            "mensaje": data.mensaje,
             "tipo": data.tipo,
             "referencia_id": str(data.referencia_id) if data.referencia_id else None,
             "referencia_tipo": data.referencia_tipo,
@@ -50,16 +79,12 @@ class NotificationService:
     
     async def mark_multiple_as_read(self, data: NotificationMarkRead, current_user: Dict[str, Any]) -> Dict[str, str]:
         """Mark multiple notifications as read"""
-        if not data.ids:
-            await self.repo.mark_multiple_as_read(user_id=current_user["id"])
-            return {"message": "Notificaciones marcadas como leídas"}
-
         # Verify all notifications belong to user
         for nid in data.ids:
             notification = await self.repo.get_by_id(nid)
             if not notification or str(notification["user_id"]) != current_user["id"]:
                 raise HTTPException(403, "Una o más notificaciones no pertenecen a ti")
-
+        
         await self.repo.mark_multiple_as_read(data.ids)
         return {"message": "Notificaciones marcadas como leídas"}
     

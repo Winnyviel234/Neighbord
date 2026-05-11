@@ -73,7 +73,7 @@ export default function ReunionesPage() {
   return (
     <section>
       <h1 className="page-title">Reuniones y asambleas</h1>
-      {hasRole('admin', 'directiva') && (
+      {hasRole('admin', 'directiva', 'vocero', 'secretaria') && (
         <form onSubmit={submit} className="card mt-6 grid gap-4 p-5 md:grid-cols-2">
           <h2 className="font-bold text-neighbor-navy md:col-span-2">{editing ? 'Editar reunion' : 'Crear reunion'}</h2>
           <input className="input" placeholder="Titulo" value={form.titulo} onChange={(e) => setForm({ ...form, titulo: e.target.value })} required />
@@ -81,7 +81,7 @@ export default function ReunionesPage() {
           <input className="input" type="datetime-local" value={form.fecha} onChange={(e) => setForm({ ...form, fecha: e.target.value })} required />
           <select className="input" value={form.tipo} onChange={(e) => setForm({ ...form, tipo: e.target.value })}>
             <option value="general">Asamblea general</option>
-            <option value="directiva">Reunion de directiva</option>
+            <option value="directiva">Reunion de Directiva</option>
           </select>
           <textarea className="input min-h-24 md:col-span-2" placeholder="Descripcion" value={form.descripcion} onChange={(e) => setForm({ ...form, descripcion: e.target.value })} />
           <div className="md:col-span-2">

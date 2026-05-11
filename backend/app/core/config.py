@@ -5,7 +5,7 @@ from pydantic_settings import BaseSettings
 class Settings(BaseSettings):
     app_name: str = "Neighbord Community System"
     environment: str = "development"
-    frontend_url: str = "http://localhost:5173"
+    frontend_url: str = "http://localhost:5174"
 
     supabase_url: str = ""
     supabase_service_role_key: str = ""

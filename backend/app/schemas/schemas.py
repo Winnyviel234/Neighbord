@@ -32,6 +32,7 @@ class ProfileUpdateIn(BaseModel):
 class VecinoIn(BaseModel):
     nombre: str
     email: Optional[EmailStr] = None
+    password: Optional[str] = Field(None, min_length=6, max_length=72)
     telefono: Optional[str] = None
     direccion: str
     documento: Optional[str] = None

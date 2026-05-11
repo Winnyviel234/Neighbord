@@ -5,6 +5,7 @@ from app.core.supabase import table
 class NotificationRepository:
     def __init__(self):
         self.notifications_table = table("notifications")
+        self.preferences_table = table("preferencias_notificaciones")
     
     async def get_user_notifications(self, user_id: UUID, unread_only: bool = False) -> List[Dict[str, Any]]:
         """Get notifications for a user"""
@@ -15,6 +16,19 @@ class NotificationRepository:
         
         result = query.order("created_at", desc=True).execute()
         return result.data or []
+
+    async def get_user_preferences(self, user_id: UUID) -> Optional[Dict[str, Any]]:
+        """Get or create notification preferences for a user"""
+        result = self.preferences_table.select("*").eq("usuario_id", str(user_id)).execute()
+        if result.data:
+            return result.data[0]
+        return None
+
+    async def save_user_preferences(self, user_id: UUID, prefs: Dict[str, Any]) -> Dict[str, Any]:
+        """Save or update notification preferences for a user"""
+        data = {"usuario_id": str(user_id), **prefs}
+        result = self.preferences_table.upsert(data, on_conflict="usuario_id").execute()
+        return result.data[0] if result.data else data
     
     async def get_by_id(self, notification_id: UUID) -> Optional[Dict[str, Any]]:
         """Get notification by ID"""
@@ -31,17 +45,14 @@ class NotificationRepository:
         result = self.notifications_table.update({"read": True}).eq("id", str(notification_id)).execute()
         return result.data[0] if result.data else None
     
-    async def mark_multiple_as_read(self, notification_ids: Optional[List[UUID]] = None, user_id: Optional[str] = None) -> bool:
+    async def mark_multiple_as_read(self, notification_ids: List[UUID]) -> bool:
         """Mark multiple notifications as read"""
+        id_strings = [str(nid) for nid in notification_ids]
+        # Using in_ filter for multiple IDs
         query = self.notifications_table
-        if notification_ids:
-            id_strings = [str(nid) for nid in notification_ids]
-            query = query.in_("id", id_strings)
-        elif user_id:
-            query = query.eq("user_id", str(user_id))
-        else:
-            return False
-
+        for nid in id_strings:
+            query = query.or_(f"id.eq.{nid}")
+        
         result = query.update({"read": True}).execute()
         return len(result.data) > 0
     

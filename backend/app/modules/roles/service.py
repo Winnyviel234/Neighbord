@@ -43,7 +43,7 @@ class RoleService:
         role = await self.repo.get_by_id(role_id)
         if not role:
             raise HTTPException(404, "Rol no encontrado")
-        if role.get("name") in ["admin", "directiva", "tesorero", "vecino"]:
+        if role.get("name") in ["admin", "directiva", "tesorero", "vocero", "secretaria", "vecino"]:
             raise HTTPException(400, "No se puede eliminar un rol base del sistema")
         success = await self.repo.delete(role_id)
         if not success:

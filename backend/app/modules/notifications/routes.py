@@ -1,13 +1,50 @@
 from fastapi import APIRouter, Depends, Query
+from pydantic import BaseModel
 from typing import Optional
 from uuid import UUID
 from app.core.security import get_current_user
 from app.modules.notifications.service import NotificationService
 from app.modules.notifications.model import NotificationMarkRead
+from app.services.whatsapp_service import WhatsAppService
 
 router = APIRouter(prefix="/notifications", tags=["notifications"])
 
 notification_service = NotificationService()
+
+
+class WhatsAppTestRequest(BaseModel):
+    telefono: str
+    mensaje: str
+
+class NotificationPreferencesUpdate(BaseModel):
+    votaciones: bool | None = None
+    reuniones: bool | None = None
+    pagos: bool | None = None
+    solicitudes: bool | None = None
+    comunicados: bool | None = None
+    directiva: bool | None = None
+    chat: bool | None = None
+    email_votaciones: bool | None = None
+    email_reuniones: bool | None = None
+    email_pagos: bool | None = None
+    email_solicitudes: bool | None = None
+    email_comunicados: bool | None = None
+    email_directiva: bool | None = None
+    email_chat: bool | None = None
+
+@router.get("/preferences")
+async def get_preferences(user: dict = Depends(get_current_user)):
+    """Get current user's notification preferences"""
+    return await notification_service.get_user_preferences(user["id"])
+
+@router.patch("/preferences")
+async def update_preferences(
+    payload: NotificationPreferencesUpdate,
+    user: dict = Depends(get_current_user)
+):
+    """Update current user's notification preferences"""
+    updated = await notification_service.save_user_preferences(user["id"], payload.dict(exclude_none=True))
+    return updated
 
 @router.get("")
 async def get_notifications(
@@ -61,38 +98,12 @@ async def delete_notification(
     """Delete notification"""
     return await notification_service.delete_notification(notification_id, user)
 
-@router.get("/preferences")
-async def get_preferences(
-    user: dict = Depends(get_current_user)
-):
-    """Get notification preferences"""
-    from app.services.notification_service import NotificationService
-    notif_service = NotificationService()
-    return await notif_service.get_user_preferences(user["id"])
 
-@router.patch("/preferences")
-async def update_preferences(
-    preferences: dict,
-    user: dict = Depends(get_current_user)
-):
-    """Update notification preferences"""
-    from app.services.notification_service import NotificationService
-    from app.core.supabase import table
-    
-    prefs_table = table("preferencias_notificaciones")
-    
-    # Actualizar o crear preferencias
-    result = prefs_table.update(preferences) \
-        .eq("usuario_id", user["id"]) \
-        .execute()
-    
-    if result.data:
-        return result.data[0]
-    
-    # Si no existe, crear nuevo
-    new_prefs = {
-        "usuario_id": user["id"],
-        **preferences
-    }
-    result = prefs_table.insert(new_prefs).execute()
-    return result.data[0] if result.data else None
+@router.post("/whatsapp/test")
+def send_whatsapp_test(payload: WhatsAppTestRequest, user: dict = Depends(get_current_user)):
+    """Enviar un mensaje WhatsApp de prueba usando la configuración de Twilio"""
+    service = WhatsAppService()
+    if not service.enabled:
+        return {"whatsapp_enabled": False, "result": {"sent": False, "detail": "WhatsApp no está configurado."}}
+    result = service.send_message(payload.telefono, payload.mensaje)
+    return {"whatsapp_enabled": service.enabled, "result": result}

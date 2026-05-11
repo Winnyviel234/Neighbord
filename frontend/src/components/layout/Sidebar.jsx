@@ -4,23 +4,23 @@ import { useAuth } from '../../context/AuthContext';
 import { roleLabel } from '../../lib/utils';
 
 const items = [
-  { to: '/app', label: 'Dashboard', icon: Home, roles: ['admin', 'directiva', 'tesorero', 'vecino'] },
-  { to: '/app/admin-dashboard', label: 'Dashboard Admin', icon: BarChart3, roles: ['admin', 'directiva', 'tesorero'] },
-  { to: '/app/perfil', label: 'Perfil', icon: UserRound, roles: ['admin', 'directiva', 'tesorero', 'vecino'] },
+  { to: '/app', label: 'Dashboard', icon: Home, roles: ['admin', 'directiva', 'tesorero', 'vocero', 'secretaria', 'vecino'] },
+  { to: '/app/perfil', label: 'Perfil', icon: UserRound, roles: ['admin', 'directiva', 'tesorero', 'vocero', 'secretaria', 'vecino'] },
   { to: '/app/vecinos', label: 'Vecinos', icon: Users, roles: ['admin', 'directiva', 'tesorero'] },
-  { to: '/app/reuniones', label: 'Reuniones', icon: Bell, roles: ['admin', 'directiva', 'tesorero', 'vecino'] },
-  { to: '/app/votaciones', label: 'Votaciones', icon: Vote, roles: ['admin', 'directiva', 'tesorero', 'vecino'] },
-  { to: '/app/mapa', label: 'Mapa del sector', icon: Map, roles: ['admin', 'directiva', 'tesorero', 'vecino'] },
-  { to: '/app/comunidad', label: 'Comunidad en vivo', icon: MessageCircle, roles: ['admin', 'directiva', 'tesorero', 'vecino'] },
-  { to: '/app/solicitudes', label: 'Solicitudes', icon: FileText, roles: ['admin', 'directiva', 'tesorero', 'vecino'] },
-  { to: '/app/comunicados', label: 'Comunicados', icon: Newspaper, roles: ['admin', 'directiva', 'tesorero', 'vecino'] },
-  { to: '/app/noticias', label: 'Noticias', icon: Newspaper, roles: ['admin', 'directiva', 'tesorero', 'vecino'] },
-  { to: '/app/pagos', label: 'Pagos', icon: WalletCards, roles: ['admin', 'directiva', 'tesorero', 'vecino'] },
+  { to: '/app/reuniones', label: 'Reuniones', icon: Bell, roles: ['admin', 'directiva', 'tesorero', 'vocero', 'secretaria', 'vecino'] },
+  { to: '/app/votaciones', label: 'Votaciones', icon: Vote, roles: ['admin', 'directiva', 'tesorero', 'vocero', 'secretaria', 'vecino'] },
+  { to: '/app/admin-dashboard', label: 'Panel admin', icon: BarChart3, roles: ['admin', 'directiva', 'tesorero'] },
+  { to: '/app/mapa', label: 'Mapa del sector', icon: Map, roles: ['admin', 'directiva', 'tesorero', 'vocero', 'secretaria', 'vecino'] },
+  { to: '/app/comunidad', label: 'Comunidad en vivo', icon: MessageCircle, roles: ['admin', 'directiva', 'tesorero', 'vocero', 'secretaria', 'vecino'] },
+  { to: '/app/solicitudes', label: 'Solicitudes', icon: FileText, roles: ['admin', 'directiva', 'tesorero', 'vocero', 'secretaria', 'vecino'] },
+  { to: '/app/comunicados', label: 'Comunicados', icon: Newspaper, roles: ['admin', 'directiva', 'tesorero', 'vocero', 'secretaria', 'vecino'] },
+  { to: '/app/noticias', label: 'Noticias', icon: Newspaper, roles: ['admin', 'directiva', 'tesorero', 'vocero', 'secretaria', 'vecino'] },
+  { to: '/app/pagos', label: 'Pagos', icon: WalletCards, roles: ['admin', 'directiva', 'tesorero', 'vocero', 'secretaria', 'vecino'] },
   { to: '/app/finanzas', label: 'Finanzas', icon: WalletCards, roles: ['admin', 'directiva', 'tesorero'] },
-  { to: '/app/directiva', label: 'Directiva', icon: Landmark, roles: ['admin', 'directiva', 'tesorero'] },
-  { to: '/app/reportes', label: 'Reportes', icon: BarChart3, roles: ['admin', 'directiva', 'tesorero'] },
-  { to: '/app/notificaciones', label: 'Notificaciones', icon: Bell, roles: ['admin', 'directiva', 'tesorero', 'vecino'] },
-  { to: '/app/preferencias-notificaciones', label: 'Preferencias', icon: Bell, roles: ['admin', 'directiva', 'tesorero', 'vecino'] },
+  { to: '/app/directiva', label: 'Directiva', icon: Landmark, roles: ['admin', 'directiva', 'tesorero', 'vocero', 'secretaria'] },
+  { to: '/app/reportes', label: 'Reportes', icon: BarChart3, roles: ['admin', 'directiva', 'tesorero', 'vocero', 'secretaria'] },
+  { to: '/app/notificaciones', label: 'Notificaciones', icon: Bell, roles: ['admin', 'directiva', 'tesorero', 'vocero', 'secretaria', 'vecino'] },
+  { to: '/app/preferencias-notificaciones', label: 'Preferencias', icon: Bell, roles: ['admin', 'directiva', 'tesorero', 'vocero', 'secretaria', 'vecino'] },
   { to: '/app/admin', label: 'Publicaciones', icon: Mail, roles: ['admin', 'directiva'] }
 ];
 

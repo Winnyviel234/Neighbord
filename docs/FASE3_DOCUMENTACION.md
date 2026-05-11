@@ -283,7 +283,7 @@ Ejecutar `migration_v2.sql` que incluye:
 **Fase 4:** Integración con sistemas externos
 - API Strike para pagos reales
 - Google Maps para geolocalización
-- WhatsApp para notificaciones (Twilio opcional)
+- WhatsApp para notificaciones
 
 **Fase 5:** Reportes avanzados
 - Dashboard con estadísticas
@@ -291,6 +291,6 @@ Ejecutar `migration_v2.sql` que incluye:
 - Auditoría detallada
 
 **Fase 6:** Optimizaciones
-- Caching con Redis (`app.core.cache`)
-- Búsqueda con Elasticsearch (`/api/v2/search`)
-- Monitoreo y alertas (`/api/v2/monitoring/status`)
+- Caching con Redis
+- Búsqueda con Elasticsearch
+- Monitoreo y alertas

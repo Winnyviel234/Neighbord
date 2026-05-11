@@ -1,6 +1,6 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 
-from app.core.security import require_roles
+from app.core.security import hash_password, require_roles
 from app.core.supabase import table
 from app.schemas.schemas import VecinoIn
 from app.services.email_service import EmailService
@@ -15,8 +15,12 @@ def list_vecinos(user: dict = Depends(require_roles("admin", "directiva", "tesor
 
 @router.post("")
 def create_vecino(payload: VecinoIn, user: dict = Depends(require_roles("admin", "directiva"))):
-    data = payload.model_dump()
-    data.update({"rol": "vecino", "password_hash": "", "activo": True})
+    data = payload.model_dump(exclude_none=True)
+    password = data.pop("password", None)
+    if not password:
+        raise HTTPException(status_code=400, detail="Debes especificar una contraseña para el vecino")
+    data["password_hash"] = hash_password(password)
+    data.update({"rol": "vecino", "activo": True})
     return table("usuarios").insert(data).execute().data[0]
 
 
@@ -35,6 +39,9 @@ def update_estado(vecino_id: str, estado: str, user: dict = Depends(require_role
 
 @router.patch("/{vecino_id}/rol/{rol}")
 def update_rol(vecino_id: str, rol: str, user: dict = Depends(require_roles("admin"))):
+    allowed_roles = {"vecino", "directiva", "tesorero", "vocero", "secretaria"}
+    if rol not in allowed_roles:
+        raise HTTPException(status_code=400, detail="No se puede asignar ese rol desde aquí")
     return table("usuarios").update({"rol": rol}).eq("id", vecino_id).execute().data[0]
 
 

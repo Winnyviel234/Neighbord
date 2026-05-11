@@ -2,11 +2,8 @@ from fastapi import HTTPException
 from app.core.security import hash_password, verify_password, create_access_token
 from app.modules.auth.repository import AuthRepository
 from app.modules.auth.model import RegisterRequest, LoginRequest, PasswordChangeRequest, ProfileUpdateRequest
-from app.modules.sectors.repository import SectorRepository
 from app.services.email_service import EmailService
-from app.core.audit_helper import audit_login, audit_create
 from typing import Dict, Any
-from uuid import UUID
 
 class AuthService:
     def __init__(self):
@@ -27,34 +24,16 @@ class AuthService:
             "password_hash": hash_password(data.password),
             "telefono": data.telefono,
             "direccion": data.direccion,
+            "documento": data.documento,
             "estado": "pendiente",
             "activo": True
         }
         
-        if not data.sector or not data.sector.strip():
-            raise HTTPException(400, "Debes especificar el sector de tu barrio")
-
-        sector_name = data.sector.strip()
-        sector_repo = SectorRepository()
-        sector = await sector_repo.get_by_name(sector_name)
-        if not sector:
-            sector = await sector_repo.create({"name": sector_name})
-
-        user_data["sector_id"] = sector["id"]
+        if data.sector_id:
+            user_data["sector_id"] = data.sector_id
         
         # Create user
-        try:
-            user = await self.repo.create(user_data)
-        except RuntimeError as exc:
-            raise HTTPException(500, str(exc)) from exc
-        
-        # Audit log registration
-        await audit_create(
-            resource_type="users",
-            resource_id=UUID(user["id"]),
-            new_values=user_data,
-            user_id=UUID(user["id"])
-        )
+        user = await self.repo.create(user_data)
         
         # Send welcome email
         try:
@@ -62,10 +41,13 @@ class AuthService:
         except Exception as e:
             # Log error but don't fail registration
             print(f"Error sending welcome email: {e}")
-        
+
+        user.pop("password_hash", None)
+
         return {
-            "message": "Registro creado. Espera aprobación de la directiva.",
-            "user_id": user["id"]
+            "message": "Registro creado. Te notificaremos cuando tu cuenta esté lista para usar.",
+            "status": "pending_approval",
+            "user": user
         }
     
     async def login(self, data: LoginRequest) -> Dict[str, Any]:
@@ -74,23 +56,16 @@ class AuthService:
         if not user or not verify_password(data.password, user["password_hash"]):
             raise HTTPException(401, "Credenciales inválidas")
         
-        if user.get("estado") not in ["aprobado", "activo", "pendiente"]:
+        if user.get("rol") != "admin" and user.get("estado") not in ["aprobado", "activo"]:
             raise HTTPException(403, "Tu cuenta aún no está aprobada")
-        
-        # Ensure frontend compatibility: use both `rol` and `role_name` fields
-        if not user.get("rol") and user.get("role_name"):
-            user["rol"] = user["role_name"]
         
         # Create token with role info
         token_data = {
             "sub": str(user["id"]),
-            "role": user.get("role_name", user.get("rol", "vecino")),
+            "role": user.get("rol", "vecino"),
             "sector_id": str(user.get("sector_id")) if user.get("sector_id") else None
         }
         token = create_access_token(token_data)
-        
-        # Audit log login
-        await audit_login(user_id=UUID(user["id"]))
         
         # Remove sensitive data
         user.pop("password_hash", None)

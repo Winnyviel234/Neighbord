@@ -26,10 +26,14 @@ import NotificationCenterPage from './pages/NotificationCenterPage.jsx';
 import NotificationPreferencesPage from './pages/NotificationPreferencesPage.jsx';
 import AdminDashboardPage from './pages/AdminDashboardPage.jsx';
 
+const APPROVED_STATES = ['aprobado', 'activo'];
+
 function Protected({ children, roles }) {
-  const { user, loading } = useAuth();
+  const auth = useAuth();
+  const { user, loading } = auth || { user: null, loading: false };
   if (loading) return <Spinner />;
   if (!user) return <Navigate to="/login" replace />;
+  if (user.rol !== 'admin' && !APPROVED_STATES.includes(user.estado)) return <Navigate to="/login" replace />;
   if (roles && !roles.includes(user.rol)) return <Navigate to="/app" replace />;
   return children;
 }
@@ -55,8 +59,8 @@ export default function App() {
         <Route path="noticias" element={<NoticiasPage />} />
         <Route path="pagos" element={<PagosPage />} />
         <Route path="finanzas" element={<Protected roles={['admin', 'directiva', 'tesorero']}><FinanzasPage /></Protected>} />
-        <Route path="directiva" element={<Protected roles={['admin', 'directiva', 'tesorero']}><DirectivaPage /></Protected>} />
-        <Route path="reportes" element={<Protected roles={['admin', 'directiva', 'tesorero']}><ReportesPage /></Protected>} />
+        <Route path="directiva" element={<Protected roles={['admin', 'directiva', 'tesorero', 'vocero', 'secretaria']}><DirectivaPage /></Protected>} />
+        <Route path="reportes" element={<Protected roles={['admin', 'directiva', 'tesorero', 'vocero', 'secretaria']}><ReportesPage /></Protected>} />
         <Route path="admin" element={<Protected roles={['admin']}><AdminPublicacionesPage /></Protected>} />
         <Route path="admin-dashboard" element={<Protected roles={['admin', 'directiva', 'tesorero']}><AdminDashboardPage /></Protected>} />
         <Route path="notificaciones" element={<NotificationCenterPage />} />

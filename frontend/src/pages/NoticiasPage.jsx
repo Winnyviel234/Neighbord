@@ -136,7 +136,7 @@ export default function NoticiasPage({ publicView = false }) {
 
           <article className="rounded-3xl border border-slate-200 bg-white overflow-hidden shadow-lg">
             {selectedNoticia.imagen_url && (
-              <div className="aspect-video overflow-hidden bg-gradient-to-br from-neighbor-blue/10 to-emerald-100">
+              <div className="h-80 overflow-hidden bg-gradient-to-br from-neighbor-blue/10 to-emerald-100 md:h-96">
                 <img src={mediaUrl(selectedNoticia.imagen_url)} alt={selectedNoticia.titulo} className="h-full w-full object-cover" />
               </div>
             )}
@@ -278,7 +278,7 @@ export default function NoticiasPage({ publicView = false }) {
               onClick={() => setSelectedNoticia(row)}
             >
               {row.imagen_url && (
-                <div className="aspect-video w-full overflow-hidden bg-gradient-to-br from-neighbor-mist to-slate-100">
+                <div className="h-52 w-full overflow-hidden bg-gradient-to-br from-neighbor-mist to-slate-100 md:h-56">
                   <img className="h-full w-full object-cover hover:scale-105 transition" src={mediaUrl(row.imagen_url)} alt={row.titulo} />
                 </div>
               )}

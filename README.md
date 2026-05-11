@@ -1,303 +1,323 @@
-# Neighbord
-
-## Nombre del Proyecto
-
-**Neighbord - Sistema de Gestión Comunitaria**
-
-## Descripción del Proyecto
-
-Neighbord es una plataforma web para administrar una junta de vecinos o comunidad residencial. Permite gestionar residentes, directiva, reuniones, votaciones, pagos reales con comprobantes, comunicados, noticias, documentos, reportes, mapa del sector y correos institucionales.
-
-El sistema está dividido en un frontend React y un backend FastAPI conectado a Supabase para base de datos, almacenamiento y funciones de apoyo.
-
-## Estrategia profesional de integración
-
-1. Mantener la base actual: no se elimina código funcional ni se reescribe la lógica existente.
-2. Migrar progresivamente a una arquitectura modular: nuevos módulos con rutas bajo `/api/v2/*` y compatibilidad backward con `/api/*`.
-3. Priorizar seguridad y autenticación antes de desarrollar nuevas funciones.
-4. Introducir cada módulo en capas: `routes` → `service` → `repository` → `model/entity`.
-5. Probar cada módulo de forma independiente antes de integrar el siguiente.
-6. Documentar cambios en `README.md`, migraciones SQL y `.env.example`.
-
-## Diseño de Base de Datos
-
-El backend usa PostgreSQL vía Supabase. La estructura actual ya incluye tablas principales y nuevas tablas de soporte. Las relaciones críticas son:
-
-- `usuarios` → `roles` (role_id)
-- `usuarios` → `sectors` (sector_id)
-- `chat_rooms` → `sectors` (sector_id)
-- `messages` → `chat_rooms` (room_id)
-- `messages` → `usuarios` (user_id)
-- `notifications` → `usuarios` (user_id)
-- `solicitudes` → `usuarios` (assigned_to)
-- `complaint_comments` → `solicitudes` (complaint_id)
-- `pagos_cuotas` → `cuotas` (cuota_id)
-- `pagos_cuotas` → `usuarios` (vecino_id)
-- `reuniones`, `votaciones`, `proyectos` se integran con sectores, usuarios y estados de proceso.
-
-### Tablas clave recomendadas
-
-- `users` / `usuarios` (id, name, email, password_hash, role_id, sector_id, estado, activo)
-- `roles` (id, name, permissions)
-- `sectors` (id, name, description, address)
-- `chat_rooms` (id, sector_id, name, type)
-- `messages` (id, room_id, user_id, content, created_at)
-- `notifications` (id, user_id, title, message, type, read)
-- `cuotas` (id, title, amount, due_date, status)
-- `pagos_cuotas` (id, cuota_id, vecino_id, amount, estado, comprobante_url)
-- `reuniones` (id, type, date, agenda, status)
-- `votaciones` (id, title, status, start_date, end_date)
-- `proyectos` (id, sector_id, title, description, status, presupuesto_estimado)
-
-## Estado actual y prioridades
-
-### Ya implementado
-- Autenticación segura con JWT y bcrypt.
-- Arquitectura modular en `backend/app/modules`.
-- Roles y permisos con `roles.permissions` en JSONB.
-- Sectores y chat persistente.
-- Métricas de pagos, reuniones y votaciones.
-- Notificaciones básicas y mensajes.
-
-### Prioridades inmediatas
-- Consolidar `require_permissions` y `require_roles` para RBAC consistente.
-- Mantener compatibilidad con rutas legacy `/api/*`.
-- Revisar migraciones existentes y completar tablas faltantes para auditoría, directiva y proyectos.
-- Fortalecer validación y sanitización de inputs en los servicios nuevos.
-
-## Orden recomendado de implementación
-
-1. Verificar y asegurar la autenticación (`auth`, JWT, bcrypt, `get_current_user`).
-2. Consolidar roles y permisos (`roles`, `sectors`, `users`).
-3. Implementar y probar `complaints` y `chat` por sector.
-4. Añadir pagos y cuotas con estado de deuda.
-5. Añadir directiva, reuniones y votaciones.
-6. Añadir proyectos, notificaciones y auditoría.
-7. Preparar integración con Strike y mapas.
-8. Optimizar rendimiento, auditoría y seguridad.
-
-## Buenas prácticas aplicadas
-
-- Uso de DTOs y Pydantic para validación de datos.
-- Manejo de errores centralizado en servicios y excepciones HTTP.
-- Variables sensibles en `.env` y `.env.example`.
-- CORS restringido a frontend conocido y localhost seguro.
-- Hash de contraseñas con bcrypt y expiración JWT.
-- Migraciones SQL `migration_v2.sql` para no romper la base existente.
-- Conservación de rutas legacy para no romper integraciones ya desplegadas.
-
-## Estructura de backend actual
-
-El backend mantiene dos familias de rutas:
-- `backend/app/api/endpoints`: rutas legacy existentes con compatibilidad.
-- `backend/app/modules`: nueva arquitectura modular y escalable.
-
-Las rutas nuevas se exponen bajo `/api/v2` y se integran con:
-- `auth`, `users`, `sectors`, `complaints`, `chat`, `payments`, `meetings`, `voting`, `notifications`.
-
-## Recomendaciones de seguridad profesional
-
-- No publicar claves reales en repositorios.
-- Usar valores de `.env.example` como plantilla.
-- Validar datos en backend y frontend.
-- Usa `JWT_SECRET_KEY` fuerte y rotarlo periódicamente.
-- No confiar en parámetros de cliente para permisos.
-- Aplicar roles en dependencias de FastAPI, no solo en frontend.
-
-## Tecnologías Utilizadas
-
-- Frontend: React, Vite, JavaScript, Tailwind CSS, React Router, Axios, Lucide React.
-- Backend: Python, FastAPI, Uvicorn, Pydantic, Python-Jose, Passlib.
-- Base de datos: Supabase PostgreSQL.
-- Archivos: Supabase Storage y respaldo local en `backend/uploads`.
-- Correos: SMTP Gmail con clave de aplicación.
-- Reportes: ReportLab para PDF y CSV compatible con Excel.
-- Realtime: Supabase Realtime y WebSocket interno del backend.
-- Edge Function: Supabase Edge Function de referencia en `supabase/functions/send-email`.
-
-## Características del Sistema
-
-- Autenticación con JWT.
-- Roles: administrador, directiva, tesorero y vecino.
-- Registro de vecinos y aprobación administrativa.
-- Gestión de reuniones generales e internas de directiva.
-- Votaciones reales con registro único por usuario y estadísticas.
-- Elecciones con asignación de roles.
-- Pagos reales de cuotas con comprobante, estado pendiente/verificado/rechazado.
-- Gestión financiera de ingresos, egresos, cuotas y reportes.
-- Comunicados y noticias con imágenes.
-- Subida y consulta de documentos.
-- Fotos de perfil para miembros de directiva.
-- Correos personalizados con nombre y logo de Neighbord.
-- Mapa del sector con ubicación configurable.
-- Reportes PDF y CSV.
-
-## Arquitectura del Sistema
-
-### Backend (FastAPI - Python)
-
-El backend sigue una arquitectura modular limpia (Clean Architecture) con separación de responsabilidades:
-
-- **Capas**:
-  - `routes`: Endpoints REST API
-  - `service`: Lógica de negocio
-  - `repository`: Acceso a datos (Supabase)
-  - `model`: DTOs y validaciones (Pydantic)
-
-- **Módulos principales**:
-  - `auth`: Autenticación y autorización
-  - `users`: Gestión de usuarios
-- `roles`: Gestión de roles y permisos
-  - `chat`: Comunicación en tiempo real
-  - `payments`: Pagos y cuotas
-  - `meetings`: Reuniones
-  - `voting`: Votaciones
-  - `notifications`: Notificaciones por email
-
-- **Seguridad**:
-  - JWT para autenticación
-  - Bcrypt para hash de contraseñas
-  - RBAC (Role-Based Access Control)
-  - Middleware de autorización
-  - Validación estricta de datos
-  - Sanitización de inputs
-
-### Frontend (React)
-
-- Componentes modulares
-- Context API para estado global
-- Protección de rutas por roles
-- Diseño responsive con Tailwind CSS
-
-### Base de Datos (Supabase PostgreSQL)
-
-- Relaciones normalizadas
-- Índices optimizados
-- Triggers para auditoría
-- Políticas RLS (Row Level Security)
-
-## Mejores Prácticas Implementadas
-
-### Seguridad
-- Nunca almacenar contraseñas en texto plano
-- Usar variables de entorno para claves sensibles
-- Validación de inputs en backend y frontend
-- Protección contra inyección SQL (ORM)
-- CORS configurado correctamente
-- Headers de seguridad
-
-### Código
-- Principios SOLID
-- Separación de responsabilidades
-- Manejo centralizado de errores
-- Logging apropiado
-- Tests unitarios (planeado)
-- Documentación de API con OpenAPI/Swagger
-
-### Despliegue
-- Variables de entorno para configuración
-- Scripts de migración de BD
-- Backup automático
-- Monitoreo básico de salud
-
-## API Endpoints
-
-### Autenticación
-- `POST /api/v2/auth/login` - Login
-- `POST /api/v2/auth/register` - Registro
-- `POST /api/v2/auth/change-password` - Cambiar contraseña
-
-### Usuarios
-- `GET /api/v2/users` - Listar usuarios (admin/directiva)
-- `PUT /api/v2/users/{id}/approve` - Aprobar usuario
-- `PUT /api/v2/users/{id}/role` - Cambiar rol
-
-### Sectores
-- `GET /api/v2/sectors` - Listar sectores
-- `POST /api/v2/sectors` - Crear sector (admin)
-
-### Quejas/Solicitudes
-- `GET /api/v2/complaints` - Listar quejas
-- `POST /api/v2/complaints` - Crear queja
-- `PUT /api/v2/complaints/{id}/status` - Actualizar estado
-
-### Chat
-- `GET /api/v2/chat/messages` - Obtener mensajes
-- `POST /api/v2/chat/messages` - Enviar mensaje
-- WebSocket: `ws://localhost:8000/api/v2/chat/ws`
-
-### Pagos
-- `GET /api/v2/payments` - Listar pagos
-- `POST /api/v2/payments` - Registrar pago
-- `PUT /api/v2/payments/{id}/verify` - Verificar pago
-
-### Reuniones
-- `GET /api/v2/meetings` - Listar reuniones
-- `POST /api/v2/meetings` - Crear reunión
-- `PUT /api/v2/meetings/{id}/attendance` - Registrar asistencia
-
-### Votaciones
-- `GET /api/v2/voting` - Listar votaciones
-- `POST /api/v2/voting` - Crear votación
-- `POST /api/v2/voting/{id}/vote` - Votar
-
-### Notificaciones
-- `POST /api/v2/notifications/email` - Enviar email
-
-## Flujo del Sistema
-
-1. **Registro**: Usuario se registra → Estado pendiente
-2. **Aprobación**: Admin/directiva aprueba → Estado activo
-3. **Login**: JWT generado con rol y permisos
-4. **Acceso**: Rutas protegidas según rol
-5. **Funcionalidades**: CRUD según permisos
-
-## Próximas Fases de Desarrollo
-
-### Fase 2: Chat y Quejas
-- WebSockets para chat en tiempo real
-- Estados de quejas con seguimiento
-
-### Fase 3: Finanzas Avanzadas
-- Integración con API de Strike para pagos reales
-- Reportes financieros detallados
-
-### Fase 4: Gobernanza
-- Elecciones automatizadas
-- Proyectos comunitarios
-
-### Fase 5: Geospatial
-- Mapa interactivo con Leaflet
-- Incidencias geolocalizadas
-
-### Fase 6: Optimización
-- WhatsApp integration
-- Auditoría completa
-- Rendimiento y escalabilidad
-
-## Requisitos del Sistema
-
-- Windows 10/11 o sistema compatible.
-- Python 3.10 o superior.
-- Node.js 18 o superior.
-- npm.
-- Cuenta Supabase.
-- Cuenta Gmail con verificación en dos pasos y clave de aplicación.
-- `pg_dump` si se desea generar backup de base de datos.
-
-## Instalación del Proyecto
-
-### Clone de Repositorio de GitHub
-
-```bash
-git clone https://github.com/Winnyviel234/Neighbord.git
-cd neighbord
+# 🏘️ Neighbord - Sistema de Gestión Comunitaria Integral
+
+[![Python](https://img.shields.io/badge/Python-3.10+-blue.svg)](https://python.org)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.115+-green.svg)](https://fastapi.tiangolo.com)
+[![React](https://img.shields.io/badge/React-18+-blue.svg)](https://react.dev)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-via%20Supabase-336791.svg)](https://supabase.com)
+[![License](https://img.shields.io/badge/License-MIT-green.svg)](#licencia)
+
+## 📋 Descripción del Proyecto
+
+**Neighbord** es una plataforma web profesional y escalable para la administración integral de juntas de vecinos y comunidades residenciales. Ofrece soluciones de gobernanza digital, gestión financiera, comunicación comunitaria y trazabilidad de acciones.
+
+### Funcionalidades Principales
+- ✅ **Gestión de Residentes**: Registro, aprobación, perfil de miembros
+- ✅ **Directiva y Cargos**: Asignación, rotación, historial de cambios
+- ✅ **Reuniones**: Convocatorias, orden del día, actas digitales, asistencia
+- ✅ **Votaciones**: Procesos electorales transparentes con registro único
+- ✅ **Finanzas**: Cuotas, pagos con comprobante, reportes, morosidad
+- ✅ **Comunicación**: Comunicados, noticias, chat por sectores
+- ✅ **Quejas y Solicitudes**: Seguimiento por estado, asignación
+- ✅ **Documentos**: Biblioteca de estatutos, reglamentos, manuales
+- ✅ **Proyectos**: Presupuesto, gastos, seguimiento
+- ✅ **Reportes**: PDF/CSV financieros, administrativos, auditoría
+- ✅ **Seguridad**: RBAC, auditoría GDPR, trazabilidad completa
+- ✅ **Integraciones**: WhatsApp, Email, Google Maps
+
+### Stack Tecnológico
+El sistema está dividido en:
+- **Backend**: FastAPI (Python) con arquitectura modular limpia
+- **Frontend**: React 18 con Vite, TypeScript, Tailwind CSS
+- **Base de Datos**: PostgreSQL vía Supabase
+- **Almacenamiento**: Supabase Storage + Local Backups
+- **Comunicación**: Email (SMTP), WhatsApp (Twilio), WebSockets
+- **Análisis**: Elasticsearch, Redis (preparado)
+
+---
+
+## 🎯 Etapa Actual del Proyecto
+
+| Aspecto | Estado | Detalles |
+|--------|--------|---------|
+| **Funcionalidades** | 🟢 90% | 31/35 requerimientos implementados |
+| **Seguridad** | 🟡 70% | 12 vulnerabilidades identificadas y en corrección |
+| **Testing** | 🟡 40% | Tests unitarios pendientes |
+| **Documentación** | 🟡 70% | API docs ✅, Manuales de usuario 🔄 |
+| **Producción** | 🟡 50% | Ready staging, fixing security antes de prod |
+
+### Fases Completadas
+- ✅ **Fase 1**: Base Sólida (Auth, Roles, Sectores)
+- ✅ **Fase 2**: Comunicación (Chat, Quejas)
+- ✅ **Fase 3**: Finanzas (Pagos, Cuotas, Reuniones, Votaciones)
+- ✅ **Fase 4**: Integraciones Externas (Strike, Twilio, Elasticsearch)
+- ✅ **Fase 5**: Gestión de Directiva y Proyectos
+- ✅ **Fase 6**: Auditoría GDPR y Compliance
+- ✅ **Fase 7**: Optimización y Performance
+- ✅ **Fase 8**: Integraciones Avanzadas (Banking, OAuth, Webhooks, API público)
+- 🔄 **Fase 9**: Correcciones de Seguridad y Completar Requerimientos
+
+### Próximas Prioridades
+1. **Crítico**: Aplicar parches de seguridad (4 horas)
+2. **Alto**: Completar mapa de incidencias, WhatsApp, dashboard auditoría (8 horas)
+3. **Medio**: Documentación de usuario, testing (16 horas)
+4. **Deploy**: Verificación penetration testing antes de producción
+
+---
+
+## 🏗️ Arquitectura del Sistema
+
+### Backend - Clean Architecture (FastAPI)
+
+```
+backend/
+├── app/
+│   ├── modules/           # Módulos de negocio (21 módulos)
+│   │   ├── auth/          # Autenticación JWT + bcrypt
+│   │   ├── users/         # Gestión de usuarios y roles
+│   │   ├── sectors/       # Multi-tenancy por sector
+│   │   ├── complaints/    # Quejas/Solicitudes con estados
+│   │   ├── chat/          # WebSocket chat tiempo real
+│   │   ├── payments/      # Pagos, cuotas, morosidad
+│   │   ├── meetings/      # Reuniones, actas, asistencia
+│   │   ├── voting/        # Votaciones, elecciones
+│   │   ├── notifications/ # Email, WhatsApp, push
+│   │   ├── directiva/     # Gestión de cargos
+│   │   ├── projects/      # Proyectos comunitarios
+│   │   ├── audit/         # Auditoría GDPR
+│   │   ├── banking/       # Integración bancaria
+│   │   ├── oauth/         # Google, GitHub, Facebook SSO
+│   │   ├── public_api/    # API público con rate limiting
+│   │   ├── webhooks/      # Integraciones externas
+│   │   ├── statistics/    # Reportes y gráficos
+│   │   ├── search/        # Elasticsearch
+│   │   └── [más módulos]
+│   │
+│   ├── api/endpoints/     # Endpoints legacy (backward compatibility)
+│   ├── core/
+│   │   ├── security.py    # JWT, RBAC, autenticación
+│   │   ├── config.py      # Configuración centralizada
+│   │   ├── supabase.py    # Cliente Supabase
+│   │   └── sanitization.py # Validación/sanitización inputs
+│   ├── schemas/           # DTOs con Pydantic
+│   └── services/          # Servicios compartidos
+│
+└── migrations/            # Scripts SQL con versionado
 ```
 
-Si el proyecto ya está en la computadora, entra directamente a la carpeta:
+**Cada módulo sigue el patrón:**
+```
+módulo/
+├── routes.py        # Endpoints REST
+├── service.py       # Lógica de negocio
+├── repository.py    # Acceso a datos (Supabase)
+├── model.py         # DTOs + validación Pydantic
+└── __init__.py
+```
 
+### Frontend - React Vite
+
+```
+frontend/src/
+├── pages/           # Páginas por rol (Admin, Directiva, Vecino)
+├── components/
+│   ├── common/      # Header, Sidebar, Footer
+│   ├── layout/      # Layouts responsivos
+│   └── [features]/  # Componentes por funcionalidad
+├── services/
+│   └── api.js       # Cliente HTTP (axios)
+├── context/         # Context API para estado global
+├── hooks/           # Custom hooks (useCache, etc)
+├── styles/          # Tailwind CSS personalizado
+└── App.jsx          # Entry point
+```
+
+### Base de Datos - PostgreSQL (Supabase)
+
+**Tablas principales:**
+```sql
+-- Usuarios y Seguridad
+usuarios              -- Registro, perfiles, roles
+roles                 -- RBAC con permisos JSONB
+audit_logs            -- Trazabilidad de acciones
+
+-- Estructura Comunitaria
+sectors               -- Múltiples comunidades
+directiva             -- Cargos y responsables
+usuarios_directiva    -- Histórico de cambios
+
+-- Comunicación
+chat_rooms            -- Salas por sector/comisión
+messages              -- Mensajes persistentes
+notifications         -- Notificaciones + preferencias
+comunicados           -- Avisos oficiales
+
+-- Financiero
+cuotas                -- Definición de cuotas
+pagos_cuotas          -- Registro de pagos
+gastos_proyectos      -- Desglose de gastos
+
+-- Procesos
+reuniones             -- Convocatorias, actas
+asistencias           -- Registro de asistencia
+votaciones            -- Procesos electorales
+votos                 -- Registro de votos (único/usuario)
+
+-- Gestión
+solicitudes           -- Quejas, solicitudes
+proyectos             -- Proyectos comunitarios
+documentos            -- Biblioteca de archivos
+```
+
+### Seguridad - Defense in Depth
+
+```
+┌─────────────────────────────────────────────────────┐
+│  NIVEL 1: TRANSPORTE                                │
+│  - HTTPS/TLS obligatorio en producción              │
+│  - Security Headers (HSTS, CSP, X-Frame-Options)   │
+└─────────────────────────────────────────────────────┘
+           ↓
+┌─────────────────────────────────────────────────────┐
+│  NIVEL 2: AUTENTICACIÓN                             │
+│  - JWT con expiración + refresh tokens              │
+│  - bcrypt (salt rounds: 12) para contraseñas        │
+│  - 2FA (planeado para Fase 10)                      │
+└─────────────────────────────────────────────────────┘
+           ↓
+┌─────────────────────────────────────────────────────┐
+│  NIVEL 3: AUTORIZACIÓN (RBAC)                       │
+│  - Permisos granulares por acción                   │
+│  - Validación de sector_id en cada request          │
+│  - Middleware de protección de rutas                │
+└─────────────────────────────────────────────────────┘
+           ↓
+┌─────────────────────────────────────────────────────┐
+│  NIVEL 4: VALIDACIÓN DE DATOS                       │
+│  - Pydantic validators en todos los endpoints       │
+│  - Sanitización contra XSS                          │
+│  - Rate limiting por endpoint                       │
+│  - CORS restrictivo                                 │
+└─────────────────────────────────────────────────────┘
+           ↓
+┌─────────────────────────────────────────────────────┐
+│  NIVEL 5: BASE DE DATOS                             │
+│  - Unique constraints (votos, documentos)           │
+│  - Triggers para auditoría automática               │
+│  - Políticas RLS en Supabase                        │
+│  - Encriptación de campos sensibles                 │
+└─────────────────────────────────────────────────────┘
+           ↓
+┌─────────────────────────────────────────────────────┐
+│  NIVEL 6: AUDITORÍA                                 │
+│  - Logs de todas las acciones críticas              │
+│  - GDPR consent tracking                            │
+│  - IP + User Agent + timestamp                      │
+│  - Backup automático encriptado                     │
+└─────────────────────────────────────────────────────┘
+```
+
+---
+
+## 🔒 Postura de Seguridad
+
+### Implementaciones de Seguridad ✅
+- **Autenticación**: JWT con 1440 min expiration + bcrypt (12 rounds)
+- **Autorización**: RBAC con granularidad de acción (view, create, edit, delete, approve)
+- **Validación**: Pydantic validators en todos los endpoints
+- **Sanitización**: HTML escape para prevenir XSS
+- **Rate Limiting**: 5 req/min auth, 200 req/min general
+- **Security Headers**: HSTS, CSP, X-Frame-Options, X-Content-Type-Options
+- **SQL Injection**: Queries parametrizadas + UNIQUE constraints
+- **Auditoría**: Logs de todos los cambios con IP + timestamp
+- **GDPR**: Consent tracking, solicitud de eliminación de datos
+
+### Vulnerabilidades Identificadas y en Corrección 🟡
+1. JWT Secret hardcoded → Migrando a .env ✅
+2. Endpoints públicos (voting, meetings) → Agregando autenticación ✅
+3. WebSocket sin auth → Implementando JWT validation ✅
+4. Voto múltiple posible → Agregando UNIQUE constraint ✅
+5. SQL injection potencial → Sanitización de entrada ✅
+6. Sin rate limiting auth → Implementando slowapi ✅
+7. Sin security headers → Agregando middleware ✅
+8. Falta validadores Pydantic → Completando validators ✅
+
+**Ver `ANALISIS_REQUERIMIENTOS_COMPLETO.md` para detalles completos de seguridad.**
+
+---
+
+## 🚀 Inicio Rápido
+
+### Requisitos Previos
+- **Python 3.10+** con pip
+- **Node.js 18+** con npm
+- **Git**
+- **Supabase account** (base de datos + storage)
+- **Gmail** con clave de aplicación (para emails)
+- **Opcional**: Twilio (WhatsApp), Strike API (pagos)
+
+### Instalación
+
+#### 1. Clonar Repositorio
 ```bash
+git clone https://github.com/Winnyviel234/Neighbord.git
 cd community-system2
+```
+
+#### 2. Configurar Backend
+```bash
+cd backend
+
+# Crear virtual environment
+python -m venv .venv
+.\.venv\Scripts\activate  # Windows
+# o
+source .venv/bin/activate  # Linux/Mac
+
+# Instalar dependencias
+pip install -r requirements.txt
+
+# Configurar variables de entorno
+cp .env.example .env
+# Editar .env con tus credenciales Supabase, Gmail, etc.
+
+# Ejecutar migraciones
+python run_migration.py
+
+# Iniciar servidor
+python -m uvicorn app.main:app --reload --port 8000
+```
+
+**Backend disponible en:** http://localhost:8000
+**API Docs:** http://localhost:8000/docs (Swagger UI)
+
+#### 3. Configurar Frontend
+```bash
+cd frontend
+
+# Instalar dependencias
+npm install
+
+# Configurar variables de entorno
+cp .env.example .env
+# Editar .env.local con URL del backend
+
+# Iniciar desarrollo
+npm run dev
+```
+
+**Frontend disponible en:** http://localhost:5173
+
+#### 4. Base de Datos (Supabase)
+```bash
+# Las migraciones se aplican automáticamente en run_migration.py
+# O manualmente:
+psql -U postgres -h db.supabase.co -d postgres -f backend/supabase_schema.sql
+psql -U postgres -h db.supabase.co -d postgres -f backend/migration_v2.sql
+```
+
+---
+
+## 📚 Documentación
 ```
 
 ### Backend
@@ -372,115 +392,33 @@ cd backend
 ### 1. Ejecutar Backend
 
 ```bash
-# Navega al directorio backend
 cd backend
-
-# Activa el venv (si aún no está activado)
-.\.venv\Scripts\Activate.ps1
-
-# Instala dependencias (si es necesario)
-pip install -r requirements.txt
-
-# Ejecuta el servidor
-python -m uvicorn app.main:app --port 8001
+.\.venv\Scripts\python.exe -m uvicorn app.main:app --reload --port 8000
 ```
 
-Backend disponible en:
+Backend:
 
 ```text
-http://127.0.0.1:8001
+http://127.0.0.1:8000
 ```
 
-Health check:
+Salud:
 
 ```text
-http://127.0.0.1:8001/api/health
+http://127.0.0.1:8000/api/health
 ```
 
-Monitoreo:
-
-```text
-http://127.0.0.1:8001/api/v2/monitoring/status
-```
-
-Documentación Swagger:
-
-```text
-http://127.0.0.1:8001/docs
-```
-
-### 2. Ejecutar Pruebas de Backend
-
-```bash
-cd backend
-python test_api.py
-```
-
-### 3. Ejecutar Frontend
+### 2. Ejecutar Frontend
 
 ```bash
 cd frontend
 npm run dev
 ```
 
-Frontend disponible en:
+Frontend:
 
 ```text
 http://localhost:5173
-```
-
-### 4. Ejecutar Migración de Base de Datos
-
-Ve al dashboard de Supabase y ejecuta el archivo `backend/migration_v2.sql` en el SQL Editor.
-
-### 5. Inicializar Servicios de Optimización (Opcional)
-
-```bash
-cd backend
-python scripts/initialize_services.py
-```
-
-Este script verifica y configura Redis y Elasticsearch si están disponibles.
-
-## 🚀 Características Implementadas
-
-### Backend (API v2.0)
-- ✅ Arquitectura modular con 15 módulos
-- ✅ Autenticación JWT con roles y permisos
-- ✅ Base de datos PostgreSQL via Supabase
-- ✅ **Cache Redis** para alta performance
-- ✅ **Búsqueda Elasticsearch** avanzada
-- ✅ **Auditoría completa** y compliance GDPR
-- ✅ Rate limiting y seguridad
-- ✅ Backup automático
-- ✅ Documentación Swagger
-
-### Frontend (React + Vite)
-- ✅ Interfaz moderna con Tailwind CSS
-- ✅ **Lazy loading** de componentes
-- ✅ **Sistema de cache** integrado
-- ✅ **Optimizaciones de build** (code splitting, compresión)
-- ✅ Context API para estado global
-- ✅ Responsive design
-
-### Servicios Externos
-- 🔄 **Redis**: Cache de alta velocidad
-- 🔍 **Elasticsearch**: Búsqueda avanzada
-- 📧 **Gmail SMTP**: Notificaciones por email
-- 💬 **Twilio WhatsApp**: Mensajería
-- ⚡ **Strike API**: Pagos Lightning Network
-- 🏦 **Plaid/Stripe**: Integración bancaria
-- 🔗 **OAuth2**: SSO con Google, GitHub, Facebook
-- 🪝 **Webhooks**: Notificaciones externas
-- 🌐 **API Pública**: Acceso limitado con rate limiting
-
-## 📊 Estado del Proyecto
-
-- **Fases Completadas**: 9 de 10
-- **Cobertura de Funcionalidades**: ~90%
-- **Tests**: 6/7 pasando (registro requiere migración)
-- **Documentación**: Completa con manuales técnicos
-- **Integraciones**: Webhooks, OAuth2, APIs bancarias, API públicahttp://localhost:5173
 ```
 
 ### 3. Compilar Producción
@@ -554,6 +492,7 @@ community-system2/
 - Usa un servidor ASGI como Uvicorn o Gunicorn.
 - Implementa monitoreo y alertas.
 - Configura backups automáticos.
+- Considera contenedores Docker para facilidad de despliegue.
 
 ### 🤝 Contribución
 

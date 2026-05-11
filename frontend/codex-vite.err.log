@@ -1,13 +1,70 @@
-[31mfailed to load config from C:\Users\User\community-system2\frontend\vite.config.js[39m
-[31merror when starting dev server:
-Error: spawn EPERM
-    at ChildProcess.spawn (node:internal/child_process:421:11)
-    at Object.spawn (node:child_process:796:9)
-    at ensureServiceIsRunning (C:\Users\User\community-system2\frontend\node_modules\esbuild\lib\main.js:1978:29)
-    at build (C:\Users\User\community-system2\frontend\node_modules\esbuild\lib\main.js:1876:26)
-    at bundleConfigFile (file:///C:/Users/User/community-system2/frontend/node_modules/vite/dist/node/chunks/dep-Dq2t6Dq0.js:49343:24)
-    at async bundleAndLoadConfigFile (file:///C:/Users/User/community-system2/frontend/node_modules/vite/dist/node/chunks/dep-Dq2t6Dq0.js:49327:19)
-    at async loadConfigFromFile (file:///C:/Users/User/community-system2/frontend/node_modules/vite/dist/node/chunks/dep-Dq2t6Dq0.js:49291:44)
-    at async resolveConfig (file:///C:/Users/User/community-system2/frontend/node_modules/vite/dist/node/chunks/dep-Dq2t6Dq0.js:48786:24)
-    at async _createServer (file:///C:/Users/User/community-system2/frontend/node_modules/vite/dist/node/chunks/dep-Dq2t6Dq0.js:38373:66)
-    at async CAC.<anonymous> (file:///C:/Users/User/community-system2/frontend/node_modules/vite/dist/node/cli.js:753:20)[39m
+
+[1m[33mwarn[39m[22m - You have enabled experimental features: [33moptimizeUniversalDefaults[39m
+[1m[33mwarn[39m[22m - Experimental features in Tailwind CSS are not covered by semver, may introduce breaking changes, and can change at any time.
+[2m9:49:55[22m [31m[1m[vite][22m[39m [31mInternal server error: C:\Users\User\community-system2\frontend\src\pages\LandingPage.jsx: Expected corresponding JSX closing tag for <p>. (366:10)
+
+[0m [90m 364 |[31m               ))}
+ [90m 365 |[31m             [33m<[31m[33m/[31m[33mdiv[31m[33m>[31m
+[31m[1m>[22m[31m[90m 366 |[31m           [33m<[31m[33m/[31m[33mdiv[31m[33m>[31m
+ [90m     |[31m           [31m[1m^[22m[31m
+ [90m 367 |[31m           [33m<[31m[33mdiv[31m className[33m=[31m[32m"order-1 flex justify-center lg:order-2"[31m[33m>[31m
+ [90m 368 |[31m             [33m<[31m[33mdiv[31m className[33m=[31m[32m"w-full max-w-xl border border-white bg-white/90 p-8 shadow-soft backdrop-blur"[31m[33m>[31m
+ [90m 369 |[31m               [33m<[31m[33mimg[31m src[33m=[31m[32m"/neighbor-logo.png"[31m alt[33m=[31m[32m"Logo Neighbord"[31m className[33m=[31m[32m"mx-auto max-h-[460px] w-full object-contain"[31m [33m/[31m[33m>[31m[0m[39m
+  Plugin: [35mvite:react-babel[39m
+  File: [36mC:/Users/User/community-system2/frontend/src/pages/LandingPage.jsx[39m:366:10
+[33m  371|            </div>
+  372|          </div>
+  373|        </SectionWrapper>
+     |          ^
+  374|  
+  375|        {/* Statistics Section */}[39m
+      at constructor (C:\Users\User\community-system2\frontend\node_modules\@babel\parser\lib\index.js:365:19)
+      at JSXParserMixin.raise (C:\Users\User\community-system2\frontend\node_modules\@babel\parser\lib\index.js:6599:19)
+      at JSXParserMixin.jsxParseElementAt (C:\Users\User\community-system2\frontend\node_modules\@babel\parser\lib\index.js:4727:16)
+      at JSXParserMixin.jsxParseElementAt (C:\Users\User\community-system2\frontend\node_modules\@babel\parser\lib\index.js:4698:32)
+      at JSXParserMixin.jsxParseElementAt (C:\Users\User\community-system2\frontend\node_modules\@babel\parser\lib\index.js:4698:32)
+      at JSXParserMixin.jsxParseElementAt (C:\Users\User\community-system2\frontend\node_modules\@babel\parser\lib\index.js:4698:32)
+      at JSXParserMixin.jsxParseElementAt (C:\Users\User\community-system2\frontend\node_modules\@babel\parser\lib\index.js:4698:32)
+      at JSXParserMixin.jsxParseElement (C:\Users\User\community-system2\frontend\node_modules\@babel\parser\lib\index.js:4749:17)
+      at JSXParserMixin.parseExprAtom (C:\Users\User\community-system2\frontend\node_modules\@babel\parser\lib\index.js:4759:19)
+      at JSXParserMixin.parseExprSubscripts (C:\Users\User\community-system2\frontend\node_modules\@babel\parser\lib\index.js:11081:23)
+      at JSXParserMixin.parseUpdate (C:\Users\User\community-system2\frontend\node_modules\@babel\parser\lib\index.js:11066:21)
+      at JSXParserMixin.parseMaybeUnary (C:\Users\User\community-system2\frontend\node_modules\@babel\parser\lib\index.js:11046:23)
+      at JSXParserMixin.parseMaybeUnaryOrPrivate (C:\Users\User\community-system2\frontend\node_modules\@babel\parser\lib\index.js:10899:61)
+      at JSXParserMixin.parseExprOps (C:\Users\User\community-system2\frontend\node_modules\@babel\parser\lib\index.js:10904:23)
+      at JSXParserMixin.parseMaybeConditional (C:\Users\User\community-system2\frontend\node_modules\@babel\parser\lib\index.js:10881:23)
+      at JSXParserMixin.parseMaybeAssign (C:\Users\User\community-system2\frontend\node_modules\@babel\parser\lib\index.js:10831:21)
+      at C:\Users\User\community-system2\frontend\node_modules\@babel\parser\lib\index.js:10800:39
+      at JSXParserMixin.allowInAnd (C:\Users\User\community-system2\frontend\node_modules\@babel\parser\lib\index.js:12426:12)
+      at JSXParserMixin.parseMaybeAssignAllowIn (C:\Users\User\community-system2\frontend\node_modules\@babel\parser\lib\index.js:10800:17)
+      at JSXParserMixin.parseMaybeAssignAllowInOrVoidPattern (C:\Users\User\community-system2\frontend\node_modules\@babel\parser\lib\index.js:12493:17)
+      at JSXParserMixin.parseParenAndDistinguishExpression (C:\Users\User\community-system2\frontend\node_modules\@babel\parser\lib\index.js:11675:28)
+      at JSXParserMixin.parseExprAtom (C:\Users\User\community-system2\frontend\node_modules\@babel\parser\lib\index.js:11331:23)
+      at JSXParserMixin.parseExprAtom (C:\Users\User\community-system2\frontend\node_modules\@babel\parser\lib\index.js:4764:20)
+      at JSXParserMixin.parseExprSubscripts (C:\Users\User\community-system2\frontend\node_modules\@babel\parser\lib\index.js:11081:23)
+      at JSXParserMixin.parseUpdate (C:\Users\User\community-system2\frontend\node_modules\@babel\parser\lib\index.js:11066:21)
+      at JSXParserMixin.parseMaybeUnary (C:\Users\User\community-system2\frontend\node_modules\@babel\parser\lib\index.js:11046:23)
+      at JSXParserMixin.parseMaybeUnaryOrPrivate (C:\Users\User\community-system2\frontend\node_modules\@babel\parser\lib\index.js:10899:61)
+      at JSXParserMixin.parseExprOps (C:\Users\User\community-system2\frontend\node_modules\@babel\parser\lib\index.js:10904:23)
+      at JSXParserMixin.parseMaybeConditional (C:\Users\User\community-system2\frontend\node_modules\@babel\parser\lib\index.js:10881:23)
+      at JSXParserMixin.parseMaybeAssign (C:\Users\User\community-system2\frontend\node_modules\@babel\parser\lib\index.js:10831:21)
+      at JSXParserMixin.parseExpressionBase (C:\Users\User\community-system2\frontend\node_modules\@babel\parser\lib\index.js:10784:23)
+      at C:\Users\User\community-system2\frontend\node_modules\@babel\parser\lib\index.js:10780:39
+      at JSXParserMixin.allowInAnd (C:\Users\User\community-system2\frontend\node_modules\@babel\parser\lib\index.js:12421:16)
+      at JSXParserMixin.parseExpression (C:\Users\User\community-system2\frontend\node_modules\@babel\parser\lib\index.js:10780:17)
+      at JSXParserMixin.parseReturnStatement (C:\Users\User\community-system2\frontend\node_modules\@babel\parser\lib\index.js:13142:28)
+      at JSXParserMixin.parseStatementContent (C:\Users\User\community-system2\frontend\node_modules\@babel\parser\lib\index.js:12798:21)
+      at JSXParserMixin.parseStatementLike (C:\Users\User\community-system2\frontend\node_modules\@babel\parser\lib\index.js:12767:17)
+      at JSXParserMixin.parseStatementListItem (C:\Users\User\community-system2\frontend\node_modules\@babel\parser\lib\index.js:12747:17)
+      at JSXParserMixin.parseBlockOrModuleBlockBody (C:\Users\User\community-system2\frontend\node_modules\@babel\parser\lib\index.js:13316:61)
+      at JSXParserMixin.parseBlockBody (C:\Users\User\community-system2\frontend\node_modules\@babel\parser\lib\index.js:13309:10)
+      at JSXParserMixin.parseBlock (C:\Users\User\community-system2\frontend\node_modules\@babel\parser\lib\index.js:13297:10)
+      at JSXParserMixin.parseFunctionBody (C:\Users\User\community-system2\frontend\node_modules\@babel\parser\lib\index.js:12100:24)
+      at JSXParserMixin.parseFunctionBodyAndFinish (C:\Users\User\community-system2\frontend\node_modules\@babel\parser\lib\index.js:12086:10)
+      at C:\Users\User\community-system2\frontend\node_modules\@babel\parser\lib\index.js:13445:12
+      at JSXParserMixin.withSmartMixTopicForbiddingContext (C:\Users\User\community-system2\frontend\node_modules\@babel\parser\lib\index.js:12403:14)
+      at JSXParserMixin.parseFunction (C:\Users\User\community-system2\frontend\node_modules\@babel\parser\lib\index.js:13444:10)
+      at JSXParserMixin.parseExportDefaultExpression (C:\Users\User\community-system2\frontend\node_modules\@babel\parser\lib\index.js:13907:19)
+      at JSXParserMixin.parseExport (C:\Users\User\community-system2\frontend\node_modules\@babel\parser\lib\index.js:13828:25)
+      at JSXParserMixin.parseStatementContent (C:\Users\User\community-system2\frontend\node_modules\@babel\parser\lib\index.js:12878:27)
+      at JSXParserMixin.parseStatementLike (C:\Users\User\community-system2\frontend\node_modules\@babel\parser\lib\index.js:12767:17)

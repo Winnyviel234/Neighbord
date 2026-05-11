@@ -8,13 +8,7 @@ const isoIn = (days, hour = 10) => {
 };
 
 export const demoData = {
-  vecinos: [
-    { id: 'demo-vecino-1', nombre: 'Ana Morales', email: 'ana.morales@neighbor.local', telefono: '+591 700-11223', direccion: 'Pasaje Los Robles 124', documento: 'CI-102334', rol: 'admin', estado: 'activo' },
-    { id: 'demo-vecino-2', nombre: 'Carlos Rojas', email: 'carlos.rojas@neighbor.local', telefono: '+591 700-22441', direccion: 'Calle Jardin 58', documento: 'CI-284901', rol: 'tesorero', estado: 'activo' },
-    { id: 'demo-vecino-3', nombre: 'Mariela Quispe', email: 'mariela.quispe@neighbor.local', telefono: '+591 700-99871', direccion: 'Av. Comunidad 310', documento: 'CI-771204', rol: 'directiva', estado: 'activo' },
-    { id: 'demo-vecino-4', nombre: 'Jorge Salvatierra', email: 'jorge.salvatierra@neighbor.local', telefono: '+591 700-55390', direccion: 'Manzano B, Casa 17', documento: 'CI-552719', rol: 'vecino', estado: 'pendiente' },
-    { id: 'demo-vecino-5', nombre: 'Lucia Fernandez', email: 'lucia.fernandez@neighbor.local', telefono: '+591 700-41802', direccion: 'Calle Las Flores 44', documento: 'CI-430981', rol: 'vecino', estado: 'moroso' }
-  ],
+  vecinos: [], // Sin vecinos simulados
   reuniones: [
     { id: 'demo-reunion-1', titulo: 'Asamblea ordinaria de mayo', descripcion: 'Revision de cuotas, seguridad y mantenimiento de areas comunes.', fecha: isoIn(6, 19), lugar: 'Sede vecinal', tipo: 'general', estado: 'programada' },
     { id: 'demo-reunion-2', titulo: 'Mesa de trabajo de seguridad', descripcion: 'Coordinacion con vecinos por sectores y rondas informativas.', fecha: isoIn(10, 18), lugar: 'Salon comunitario', tipo: 'general', estado: 'programada' },
@@ -87,9 +81,11 @@ export const demoData = {
     { id: 'demo-notificacion-3', tipo: 'Directiva', titulo: 'Acta disponible', mensaje: 'Ya se puede revisar el resumen de la ultima reunion.', fecha: isoIn(-1, 18), estado: 'visto' }
   ],
   chatVecinal: [
-    { id: 'demo-chat-1', autor: 'Ana Morales', mensaje: 'Buenas tardes, manana se revisa el jardin central a las 9.', fecha: isoIn(-1, 17) },
-    { id: 'demo-chat-2', autor: 'Carlos Rojas', mensaje: 'Gracias Ana. Tambien llevo el resumen de gastos de abril.', fecha: isoIn(-1, 17) },
-    { id: 'demo-chat-3', autor: 'Mariela Quispe', mensaje: 'Perfecto, avisare a los vecinos del pasaje Los Robles.', fecha: isoIn(0, 8) }
+    { id: 'demo-chat-1', autor: 'Ana Morales', sector: 'Sector norte', mensaje: 'Buenas tardes, manana se revisa el jardin central a las 9.', fecha: isoIn(-1, 17) },
+    { id: 'demo-chat-2', autor: 'Carlos Rojas', sector: 'Sector norte', mensaje: 'Gracias Ana. Tambien llevo el resumen de gastos de abril.', fecha: isoIn(-1, 17) },
+    { id: 'demo-chat-3', autor: 'Mariela Quispe', sector: 'Pasaje Los Robles', mensaje: 'Perfecto, avisare a los vecinos del pasaje Los Robles.', fecha: isoIn(0, 8) },
+    { id: 'demo-chat-4', autor: 'Nicolas Vargas', sector: 'Sector sur', mensaje: 'En el sector sur ya coordinamos la limpieza de este sabado.', fecha: isoIn(0, 9) },
+    { id: 'demo-chat-5', autor: 'Rosa Martinez', sector: 'Sector sur', mensaje: 'Genial, yo puedo apoyar con bolsas y guantes para el equipo.', fecha: isoIn(0, 10) }
   ],
   mensajesDirectiva: [
     { id: 'demo-directiva-msg-1', asunto: 'Consulta por luminaria', mensaje: 'Solicito revisar el poste frente a la sede vecinal.', estado: 'recibido', fecha: isoIn(-2, 10) },

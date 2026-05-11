@@ -1,11 +1,18 @@
 import axios from 'axios';
 import { demoDashboard, demoData, demoLanding, isEmptyPayload } from './demoData';
 
+const isDev = import.meta.env.MODE !== 'production';
+const apiBaseUrl = isDev ? '/api' : import.meta.env.VITE_API_URL || '/api';
+
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || '/api'
+  baseURL: apiBaseUrl
 });
 
-const apiOrigin = new URL(api.defaults.baseURL, window.location.origin).origin;
+const safeOrigin = /^https?:\/\//i.test(window.location.origin)
+  ? window.location.origin
+  : 'http://localhost:5173';
+
+const apiOrigin = new URL(api.defaults.baseURL, safeOrigin).origin;
 
 export function mediaUrl(url) {
   if (!url) return '';
@@ -26,7 +33,9 @@ export function liveSocketUrl() {
   } else {
     // URL relativa (ej: /api)
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const host = window.location.host;
+    const host = /^[^:]+:\/\//.test(window.location.origin)
+      ? window.location.host
+      : 'localhost:5174';
     wsUrl = `${protocol}//${host}${baseURL.replace(/\/$/, '')}/ws/live`;
   }
   
@@ -60,21 +69,45 @@ const filterDeletedDemo = (payload) => {
   if (!payload || typeof payload !== 'object') return payload;
   return Object.fromEntries(Object.entries(payload).map(([key, value]) => [key, filterDeletedDemo(value)]));
 };
+const sanitizeString = (value) => (typeof value === 'string' ? value.trim().replace(/<[^>]*>/g, '') : value);
+const sanitizePayload = (value) => {
+  if (value instanceof FormData) return value;
+  if (Array.isArray(value)) return value.map(sanitizePayload);
+  if (value && typeof value === 'object') {
+    return Object.fromEntries(Object.entries(value).map(([key, nestedValue]) => [key, sanitizePayload(nestedValue)]));
+  }
+  return sanitizeString(value);
+};
 const mergeWithDemo = (fallback, payload) => {
   if (!Array.isArray(payload) || !Array.isArray(fallback)) return filterDeletedDemo(payload);
-  // Mezclar arrays: demo primero, luego datos reales
-  const merged = [...filterDeletedDemo(fallback), ...filterDeletedDemo(payload)];
-  // Eliminar duplicados por ID
+  // Mezclar arrays: datos reales primero, luego ejemplos demo.
+  const merged = [...filterDeletedDemo(payload), ...filterDeletedDemo(fallback)];
   const seen = new Set();
-  return merged.filter((item) => {
-    if (seen.has(item?.id)) return false;
-    seen.add(item?.id);
+  const unique = merged.filter((item) => {
+    if (item?.id && seen.has(item.id)) return false;
+    if (item?.id) seen.add(item.id);
     return true;
   });
+  return unique;
 };
-const demoFor = (fallback, payload, shouldUseDemo = isEmptyPayload) => (shouldUseDemo(payload) ? filterDeletedDemo(fallback) : filterDeletedDemo(payload));
-const getWithDemo = (request, fallback, shouldUseDemo) => request.then((r) => demoFor(fallback, r.data, shouldUseDemo)).catch(() => filterDeletedDemo(fallback));
+const demoFor = (fallback, payload, shouldUseDemo = isEmptyPayload) => {
+  return shouldUseDemo(payload) ? filterDeletedDemo(fallback) : filterDeletedDemo(payload);
+};
+const getWithDemo = (request, fallback, shouldUseDemo = isEmptyPayload) => request.then((r) => {
+  const payload = r.data;
+  if (Array.isArray(payload) && Array.isArray(fallback)) return mergeWithDemo(fallback, payload);
+  return demoFor(fallback, payload, shouldUseDemo);
+}).catch(() => filterDeletedDemo(fallback));
 const getAndMergeDemo = (request, fallback) => request.then((r) => mergeWithDemo(fallback, r.data)).catch(() => filterDeletedDemo(fallback));
+const getRealList = (request) => request.then((r) => filterDeletedDemo(r.data || []));
+const mergeLandingData = (payload) => ({
+  comunicados: mergeWithDemo(demoLanding.comunicados, payload?.comunicados || []),
+  noticias: mergeWithDemo(demoLanding.noticias, payload?.noticias || []),
+  votaciones: filterDeletedDemo((payload?.votaciones || []).filter((item) => !isDemoId(item?.id))),
+  pagos: mergeWithDemo(demoLanding.pagos, payload?.pagos || []),
+  asambleas: mergeWithDemo(demoLanding.asambleas, payload?.asambleas || []),
+  directiva: filterDeletedDemo(payload?.directiva || [])
+});
 const deleteWithDemo = (id, request) => {
   if (isDemoId(id)) {
     rememberDeletedDemo(id);
@@ -91,6 +124,9 @@ const deleteWithDemo = (id, request) => {
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem('neighbor_token');
   if (token) config.headers.Authorization = `Bearer ${token}`;
+  if (config.data && !(config.data instanceof FormData)) {
+    config.data = sanitizePayload(config.data);
+  }
   return config;
 });
 
@@ -115,15 +151,28 @@ export const authService = {
   getSectors: () => api.get('/v2/sectors').then((r) => r.data)
 };
 
+export const notificationService = {
+  getPreferences: () => api.get('/v2/notifications/preferences').then((r) => r.data).catch(() => ({})),
+  updatePreferences: (data) => api.patch('/v2/notifications/preferences', data).then((r) => r.data),
+  getAll: () => api.get('/v2/notifications').then((r) => r.data),
+  markAsRead: (id) => api.patch(`/v2/notifications/${id}/read`).then((r) => r.data),
+  delete: (id) => api.delete(`/v2/notifications/${id}`).then((r) => r.data)
+};
+
 export const dataService = {
+  getNotificationPreferences: () => notificationService.getPreferences(),
+  updateNotificationPreferences: (data) => notificationService.updatePreferences(data),
   dashboard: () => getWithDemo(api.get('/dashboard'), demoDashboard, isDashboardEmpty),
-  landing: () => api.get('/public/landing').then((r) => r.data).catch(() => demoLanding),
-  vecinos: () => getWithDemo(api.get('/vecinos'), demoData.vecinos),
+  landing: () => api.get('/public/landing').then((r) => mergeLandingData(r.data)).catch(() => ({
+    ...demoLanding,
+    votaciones: []
+  })),
+  vecinos: () => getWithDemo(api.get('/vecinos'), []),
   actualizarVecino: (id, data) => api.patch(`/vecinos/${id}`, data).then((r) => r.data),
   eliminarVecino: (id) => deleteWithDemo(id, () => api.delete(`/vecinos/${id}`)),
   aprobarVecino: (id) => api.patch(`/vecinos/${id}/aprobar`).then((r) => r.data),
   cambiarRolVecino: (id, rol) => api.patch(`/vecinos/${id}/rol/${rol}`).then((r) => r.data),
-  morosos: () => getWithDemo(api.get('/vecinos/morosos'), demoData.vecinos.filter((item) => item.estado === 'moroso')),
+  morosos: () => getWithDemo(api.get('/vecinos/morosos'), []),
   reuniones: (tipo) => getAndMergeDemo(api.get('/reuniones', { params: tipo ? { tipo } : {} }), tipo ? demoData.reuniones.filter((item) => item.tipo === tipo) : demoData.reuniones),
   crearReunion: (data) => {
     const formData = buildFormData(data, 'imagen');
@@ -134,7 +183,7 @@ export const dataService = {
     return api.patch(`/reuniones/${id}/form`, formData, { headers: { 'Content-Type': 'multipart/form-data' } }).then((r) => r.data);
   },
   eliminarReunion: (id) => deleteWithDemo(id, () => api.delete(`/reuniones/${id}`)),
-  votaciones: () => getAndMergeDemo(api.get('/votaciones'), demoData.votaciones),
+  votaciones: () => getRealList(api.get('/votaciones')),
   crearVotacion: (data) => {
     const formData = buildFormData(data, 'imagen');
     return api.post('/votaciones/form', formData, { headers: { 'Content-Type': 'multipart/form-data' } }).then((r) => r.data);
@@ -144,12 +193,8 @@ export const dataService = {
     return api.patch(`/votaciones/${id}/form`, formData, { headers: { 'Content-Type': 'multipart/form-data' } }).then((r) => r.data);
   },
   eliminarVotacion: (id) => deleteWithDemo(id, () => api.delete(`/votaciones/${id}`)),
-  votar: (id, opcion) => {
-    if (isDemoId(id)) {
-      return Promise.reject({ response: { data: { detail: 'No se puede votar en datos de demostración.' } } });
-    }
-    return api.post(`/votaciones/${id}/votar`, { opcion }).then((r) => r.data);
-  },
+  votar: (id, opcion) => api.post(`/votaciones/${id}/votar`, { opcion }).then((r) => r.data),
+  cancelarVoto: (id) => api.delete(`/votaciones/${id}/votar`).then((r) => r.data),
   finalizarEleccion: (id) => api.post(`/votaciones/${id}/finalizar-eleccion`).then((r) => r.data),
   pagos: () => api.get('/cuotas/pagos').then((r) => r.data),
   crearPago: (data) => api.post('/finanzas/pagos', data).then((r) => r.data),
@@ -190,7 +235,7 @@ export const dataService = {
     return api.patch(`/noticias/${id}/form`, formData, { headers: { 'Content-Type': 'multipart/form-data' } }).then((r) => r.data);
   },
   eliminarNoticia: (id) => deleteWithDemo(id, () => api.delete(`/noticias/${id}`)),
-  directiva: () => getWithDemo(api.get('/directiva'), demoData.directiva),
+  directiva: () => getRealList(api.get('/directiva')),
   crearDirectivo: (data) => {
     const formData = buildFormData(data, 'imagen');
     return api.post('/directiva/form', formData, { headers: { 'Content-Type': 'multipart/form-data' } }).then((r) => r.data);
@@ -200,7 +245,7 @@ export const dataService = {
     return api.patch(`/directiva/${id}/form`, formData, { headers: { 'Content-Type': 'multipart/form-data' } }).then((r) => r.data);
   },
   eliminarDirectivo: (id) => deleteWithDemo(id, () => api.delete(`/directiva/${id}`)),
-  reunionesDirectiva: () => getWithDemo(api.get('/directiva/reuniones'), demoData.reuniones.filter((item) => item.tipo === 'directiva')),
+  reunionesDirectiva: () => getRealList(api.get('/directiva/reuniones')),
   proyectos: () => getWithDemo(api.get('/proyectos'), [
     { id: 'demo-proyecto-1', titulo: 'Mejoramiento de iluminacion', estado: 'en progreso', presupuesto: 1350 },
     { id: 'demo-proyecto-2', titulo: 'Recuperacion de jardin central', estado: 'planificado', presupuesto: 980 }

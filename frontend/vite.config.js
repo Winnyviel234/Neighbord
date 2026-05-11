@@ -1,19 +1,17 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
-import { splitVendorChunkPlugin } from 'vite';
 
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [
-    react(),
-    splitVendorChunkPlugin()
+    react()
   ],
   server: {
     port: 5173,
     host: true, // Permite conexiones desde cualquier IP
     proxy: {
       '/api': {
-        target: 'http://127.0.0.1:8001', // Backend en puerto 8001
+        target: 'http://127.0.0.1:8000', // Backend en puerto 8000
         changeOrigin: true,
         ws: true,
         rewrite: (path) => path
@@ -29,11 +27,9 @@ export default defineConfig({
       output: {
         // Separar chunks por funcionalidad
         manualChunks: {
-          vendor: ['react', 'react-dom'],
           router: ['react-router-dom'],
-          ui: ['lucide-react', '@headlessui/react'],
-          utils: ['axios', 'date-fns'],
-          charts: ['recharts']
+          ui: ['lucide-react'],
+          utils: ['axios']
         }
       }
     },
@@ -48,8 +44,7 @@ export default defineConfig({
       'react-dom',
       'react-router-dom',
       'axios',
-      'lucide-react',
-      'date-fns'
+      'lucide-react'
     ]
   },
   // Configuración de CSS
@@ -57,4 +52,3 @@ export default defineConfig({
     devSourcemap: true
   }
 });
-

@@ -57,6 +57,23 @@ class NotificationService:
         self.user_preferences_table.insert(default_prefs).execute()
         return default_prefs
 
+    async def save_user_preferences(self, user_id: str, prefs: Dict[str, bool]) -> Dict[str, bool]:
+        """Guardar o actualizar preferencias de notificación del usuario"""
+        data = {"usuario_id": user_id}
+        allowed_keys = [
+            "votaciones", "reuniones", "pagos", "solicitudes", "comunicados", "directiva", "chat",
+            "email_votaciones", "email_reuniones", "email_pagos", "email_solicitudes", "email_comunicados",
+            "email_directiva", "email_chat"
+        ]
+        for key in allowed_keys:
+            if key in prefs:
+                data[key] = bool(prefs[key])
+
+        result = self.user_preferences_table.upsert(data, on_conflict="usuario_id").execute()
+        if result.data:
+            return result.data[0]
+        return data
+
     async def _get_user_phone(self, user_id: str) -> Optional[str]:
         users_table = table("usuarios")
         result = users_table.select("telefono").eq("id", user_id).execute()

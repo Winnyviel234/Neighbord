@@ -1,3 +1,3 @@
-from .routes import router
+from .directiva.routes import router
 
 __all__ = ["router"]

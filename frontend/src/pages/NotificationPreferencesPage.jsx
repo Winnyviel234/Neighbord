@@ -1,6 +1,6 @@
 import { Bell, Mail, AlertCircle } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import { dataService } from '../services/api';
+import { notificationService } from '../services/api';
 
 export default function NotificationPreferencesPage() {
   const [preferences, setPreferences] = useState(null);
@@ -16,17 +16,32 @@ export default function NotificationPreferencesPage() {
   const loadPreferences = async () => {
     try {
       setLoading(true);
-      const data = await dataService.getNotificationPreferences?.();
-      if (data) {
-        setPreferences(data);
-      }
+      const data = await notificationService.getPreferences();
+      setPreferences(data || getDefaultPreferences());
     } catch (err) {
-      setError('Error al cargar preferencias');
+      setPreferences(getDefaultPreferences());
       console.error(err);
     } finally {
       setLoading(false);
     }
   };
+
+  const getDefaultPreferences = () => ({
+    votaciones: true,
+    reuniones: true,
+    pagos: true,
+    solicitudes: true,
+    comunicados: true,
+    directiva: true,
+    chat: true,
+    email_votaciones: false,
+    email_reuniones: false,
+    email_pagos: false,
+    email_solicitudes: false,
+    email_comunicados: false,
+    email_directiva: false,
+    email_chat: false
+  });
 
   const handleSave = async () => {
     if (!preferences) return;
@@ -36,7 +51,7 @@ export default function NotificationPreferencesPage() {
       setError('');
       setSuccess('');
 
-      await dataService.updateNotificationPreferences?.(preferences);
+      await notificationService.updatePreferences(preferences);
       setSuccess('Preferencias guardadas correctamente');
       setTimeout(() => setSuccess(''), 3000);
     } catch (err) {
@@ -54,7 +69,7 @@ export default function NotificationPreferencesPage() {
     }));
   };
 
-  if (loading || !preferences) {
+  if (loading) {
     return (
       <section>
         <h1 className="page-title">Preferencias de Notificaciones</h1>
@@ -158,7 +173,7 @@ export default function NotificationPreferencesPage() {
       </div>
 
       <div className="mt-6 flex gap-3">
-        <button onClick={loadPreferences} disabled={loading} className="btn-secondary">
+        <button onClick={loadPreferences} disabled={loading || saving} className="btn-secondary">
           Cancelar
         </button>
         <button onClick={handleSave} disabled={saving || loading} className="btn-primary">

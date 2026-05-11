@@ -1,5 +1,5 @@
 from datetime import datetime, timedelta, timezone
-from typing import Iterable
+from typing import Iterable, Optional
 
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
@@ -8,9 +8,11 @@ from passlib.context import CryptContext
 
 from app.core.config import settings
 from app.core.supabase import table
+from app.modules.auth.repository import DEFAULT_ROLES, DEFAULT_SECTOR
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v2/auth/login")
+oauth2_optional_scheme = OAuth2PasswordBearer(tokenUrl="/api/v2/auth/login", auto_error=False)
 
 
 def hash_password(password: str) -> str:
@@ -33,6 +35,10 @@ def get_current_user(token: str = Depends(oauth2_scheme)) -> dict:
         detail="No autenticado",
         headers={"WWW-Authenticate": "Bearer"},
     )
+    approval_error = HTTPException(
+        status_code=status.HTTP_403_FORBIDDEN,
+        detail="Tu cuenta aún no está aprobada",
+    )
     try:
         payload = jwt.decode(token, settings.jwt_secret_key, algorithms=[settings.jwt_algorithm])
         user_id = payload.get("sub")
@@ -41,16 +47,83 @@ def get_current_user(token: str = Depends(oauth2_scheme)) -> dict:
     except JWTError as exc:
         raise credentials_error from exc
 
-    result = table("usuarios").select("""
-        usuarios.*,
-        roles.name as role_name,
-        roles.permissions as role_permissions,
-        sectors.name as sector_name,
-        sectors.id as sector_id
-    """).eq("usuarios.id", user_id).single().execute()
+    result = table("usuarios").select("*").eq("id", user_id).single().execute()
     if not result.data or not result.data.get("activo", True):
         raise credentials_error
-    return result.data
+
+    user = result.data
+    role_name = user.get("rol", "vecino")
+    role_permissions = DEFAULT_ROLES.get(role_name, DEFAULT_ROLES["vecino"])["permissions"]
+    if user.get("role_id"):
+        try:
+            role_result = table("roles").select("name, permissions").eq("id", user["role_id"]).single().execute()
+            if role_result.data:
+                role_name = role_result.data.get("name", role_name)
+                role_permissions = role_result.data.get("permissions", role_permissions)
+        except Exception:
+            pass
+
+    if user.get("estado") not in ["aprobado", "activo"] and role_name != "admin":
+        raise approval_error
+
+    sector_name = DEFAULT_SECTOR["name"]
+    if user.get("sector_id"):
+        try:
+            sector_result = table("sectors").select("name").eq("id", user["sector_id"]).single().execute()
+            if sector_result.data:
+                sector_name = sector_result.data.get("name", sector_name)
+        except Exception:
+            pass
+
+    user["role_name"] = role_name
+    user["role_permissions"] = role_permissions
+    user["sector_name"] = sector_name
+    return user
+
+
+def get_optional_current_user(token: str | None = Depends(oauth2_optional_scheme)) -> dict | None:
+    if not token:
+        return None
+    try:
+        payload = jwt.decode(token, settings.jwt_secret_key, algorithms=[settings.jwt_algorithm])
+        user_id = payload.get("sub")
+        if not user_id:
+            return None
+    except JWTError:
+        return None
+
+    result = table("usuarios").select("*").eq("id", user_id).single().execute()
+    if not result.data or not result.data.get("activo", True):
+        return None
+
+    user = result.data
+    role_name = user.get("rol", "vecino")
+    role_permissions = DEFAULT_ROLES.get(role_name, DEFAULT_ROLES["vecino"])["permissions"]
+    if user.get("role_id"):
+        try:
+            role_result = table("roles").select("name, permissions").eq("id", user["role_id"]).single().execute()
+            if role_result.data:
+                role_name = role_result.data.get("name", role_name)
+                role_permissions = role_result.data.get("permissions", role_permissions)
+        except Exception:
+            pass
+
+    if user.get("estado") not in ["aprobado", "activo"] and role_name != "admin":
+        return None
+
+    sector_name = DEFAULT_SECTOR["name"]
+    if user.get("sector_id"):
+        try:
+            sector_result = table("sectors").select("name").eq("id", user["sector_id"]).single().execute()
+            if sector_result.data:
+                sector_name = sector_result.data.get("name", sector_name)
+        except Exception:
+            pass
+
+    user["role_name"] = role_name
+    user["role_permissions"] = role_permissions
+    user["sector_name"] = sector_name
+    return user
 
 
 def require_permissions(*required_permissions: str):

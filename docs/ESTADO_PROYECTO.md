@@ -129,35 +129,35 @@ Supabase PostgreSQL
 
 ---
 
-## 🚀 PRÓXIMAS FASES Y EXTRAS
+## 🚀 PRÓXIMAS FASES
 
 ### Fase 4: Integraciones Externas
-- [x] API Strike para pagos reales (backend preparado)
-- [x] Google Maps para geolocalización (frontend y live map listos)
-- [x] WhatsApp para notificaciones (integración opcional con Twilio)
+- [ ] API Strike para pagos reales
+- [ ] Google Maps para geolocalización
+- [ ] WhatsApp para notificaciones
 
 ### Fase 5: Reportes Avanzados
-- [x] Dashboard con estadísticas
-- [x] Exportación de datos
-- [x] Auditoría detallada básica
+- [ ] Dashboard con estadísticas
+- [ ] Exportación de datos
+- [ ] Auditoría detallada
 
 ### Fase 6: Optimizaciones
-- [x] Redis para caching (soporte opcional en `app.core.cache`)
-- [x] Elasticsearch para búsqueda (`/api/v2/search`)
-- [x] Monitoreo y alertas (`/api/v2/monitoring/status`)
+- [ ] Redis para caching
+- [ ] Elasticsearch para búsqueda
+- [ ] Monitoreo y alertas
 
 ---
 
 ## 📋 CHECKLIST PRÓXIMOS PASOS
 
-- [x] Ejecutar `migration_v2.sql` en Supabase Dashboard
-- [x] Verificar tablas creadas en BD
-- [x] Probar endpoints con Postman/Insomnia
-- [x] Actualizar frontend para usar `/api/v2`
-- [x] Integración con componentes React
-- [x] Testing de flujos completos (script básico en `backend/test_api.py`)
-- [x] Documentación de usuario
-- [x] Deploy a producción (listo para deploy con endpoints y documentación)
+- [ ] Ejecutar `migration_v2.sql` en Supabase Dashboard
+- [ ] Verificar tablas creadas en BD
+- [ ] Probar endpoints con Postman/Insomnia
+- [ ] Actualizar frontend para usar `/api/v2`
+- [ ] Integración con componentes React
+- [ ] Testing de flujos completos
+- [ ] Documentación de usuario
+- [ ] Deploy a producción
 
 ---
 

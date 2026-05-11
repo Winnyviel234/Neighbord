@@ -2,9 +2,7 @@
 export default {
   content: [
     './index.html',
-    './src/**/*.{js,jsx,ts,tsx}',
-    // Incluir componentes de librerías si es necesario
-    './node_modules/@headlessui/react/**/*.{js,ts,jsx,tsx}'
+    './src/**/*.{js,jsx,ts,tsx}'
   ],
   theme: {
     extend: {
@@ -69,4 +67,3 @@ export default {
     optimizeUniversalDefaults: true
   }
 };
-

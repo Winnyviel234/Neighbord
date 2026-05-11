@@ -1,29 +1,36 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 from typing import Optional
 from uuid import UUID
 from datetime import datetime
 
-class NotificationBase(BaseModel):
+class Notification(BaseModel):
+    id: Optional[UUID]
+    user_id: UUID
     titulo: str
-    contenido: str = Field(..., alias='mensaje')
-    tipo: str = 'info'
+    mensaje: str
+    tipo: str = "info"  # info, warning, error, success
+    leida: bool = False
+    referencia_id: Optional[UUID] = None  # ID del objeto relacionado (complaint, meeting, etc)
+    referencia_tipo: Optional[str] = None  # Tipo del objeto (complaint, meeting, vote, etc)
+    created_at: Optional[datetime] = None
+
+class NotificationCreate(BaseModel):
+    titulo: str
+    mensaje: str
+    tipo: str = "info"
     referencia_id: Optional[UUID] = None
     referencia_tipo: Optional[str] = None
 
-    class Config:
-        allow_population_by_field_name = True
-
-class NotificationCreate(NotificationBase):
-    pass
-
-class NotificationResponse(NotificationBase):
+class NotificationResponse(BaseModel):
     id: UUID
     user_id: UUID
-    leida: bool = Field(False, alias='read')
+    titulo: str
+    mensaje: str
+    tipo: str
+    leida: bool
+    referencia_id: Optional[UUID] = None
+    referencia_tipo: Optional[str] = None
     created_at: datetime
-
-    class Config:
-        allow_population_by_field_name = True
 
 class NotificationMarkRead(BaseModel):
     ids: list[UUID]  # IDs de notificaciones a marcar como leídas

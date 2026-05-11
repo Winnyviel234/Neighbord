@@ -1,4 +1,4 @@
-import { BellRing, CheckCircle2, MessageCircle, Radio, Send, Users } from 'lucide-react';
+import { BellRing, CheckCircle2, MapPin, MessageCircle, Radio, Send, Users } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Badge, Spinner } from '../components/common';
 import { dateTime } from '../lib/utils';
@@ -6,6 +6,14 @@ import { dataService, liveSocketUrl } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 
 const avatarFor = (name = 'V') => name.trim().slice(0, 2).toUpperCase();
+const defaultSector = 'General';
+const sectorLabel = (value) => {
+  if (!value) return defaultSector;
+  if (typeof value === 'object') return value.name || value.nombre || value.label || defaultSector;
+  return String(value);
+};
+const sectorKey = (value) => sectorLabel(value).trim().toLowerCase() || defaultSector.toLowerCase();
+const sectorForMessage = (message) => sectorLabel(message?.sector_nombre || message?.sector_name || message?.sector);
 
 export default function ComunidadPage() {
   const { user } = useAuth();
@@ -22,6 +30,7 @@ export default function ComunidadPage() {
   const [chatText, setChatText] = useState('');
   const [queuedMessages, setQueuedMessages] = useState([]);
   const [directivaForm, setDirectivaForm] = useState({ asunto: '', mensaje: '' });
+  const [activeSector, setActiveSector] = useState(sectorKey(user?.sector_nombre || user?.sector_name || user?.sector));
 
   useEffect(() => {
     Promise.all([
@@ -78,14 +87,13 @@ socket.onopen = () => {
         if (payload.type === 'presence:update') setPresence(payload.presence || []);
         if (payload.type === 'chat:new') {
           setChat((items) => [...(items || []), payload.message]);
-          setTypingUsers((items) => items.filter((name) => name !== payload.message.autor));
+          setTypingUsers((items) => items.filter((item) => item.autor !== payload.message.autor || item.sector !== sectorKey(sectorForMessage(payload.message))));
         }
         if (payload.type === 'chat:typing' && payload.autor !== user?.nombre) {
           setTypingUsers((items) => {
-            const next = new Set(items);
-            if (payload.isTyping) next.add(payload.autor);
-            else next.delete(payload.autor);
-            return [...next];
+            const payloadSector = sectorKey(payload.sector_nombre || payload.sector_name || payload.sector);
+            const withoutCurrent = items.filter((item) => item.autor !== payload.autor || item.sector !== payloadSector);
+            return payload.isTyping ? [...withoutCurrent, { autor: payload.autor, sector: payloadSector }] : withoutCurrent;
           });
         }
         if (payload.type === 'directiva:new') setDirectivaMessages((items) => [payload.message, ...(items || [])]);
@@ -102,12 +110,43 @@ socket.onopen = () => {
     };
   }, [user]);
 
-  useEffect(() => {
-    messagesRef.current?.scrollTo({ top: messagesRef.current.scrollHeight, behavior: 'smooth' });
-  }, [chat, typingUsers]);
-
   const unread = useMemo(() => notifications?.filter((item) => item.estado === 'nuevo').length || 0, [notifications]);
   const isLive = status === 'en vivo';
+  const sectors = useMemo(() => {
+    const options = new Map();
+    (chat || []).forEach((message) => {
+      const label = sectorForMessage(message);
+      options.set(sectorKey(label), label);
+    });
+    const userSectorValue = user?.sector_nombre || user?.sector_name || user?.sector;
+    if (userSectorValue) {
+      const userSector = sectorLabel(userSectorValue);
+      options.set(sectorKey(userSector), userSector);
+    }
+    if (!options.size) options.set(sectorKey(defaultSector), defaultSector);
+    return [...options.entries()].map(([key, label]) => ({
+      key,
+      label,
+      count: (chat || []).filter((message) => sectorKey(sectorForMessage(message)) === key).length
+    }));
+  }, [chat, user]);
+  const activeSectorLabel = sectors.find((sector) => sector.key === activeSector)?.label || defaultSector;
+  const activeChat = useMemo(() => {
+    return (chat || []).filter((message) => sectorKey(sectorForMessage(message)) === activeSector);
+  }, [chat, activeSector]);
+  const activeTypingUsers = useMemo(() => {
+    return typingUsers.filter((item) => item.sector === activeSector).map((item) => item.autor);
+  }, [typingUsers, activeSector]);
+
+  useEffect(() => {
+    if (sectors.length && !sectors.some((sector) => sector.key === activeSector)) {
+      setActiveSector(sectors[0].key);
+    }
+  }, [sectors, activeSector]);
+
+  useEffect(() => {
+    messagesRef.current?.scrollTo({ top: messagesRef.current.scrollHeight, behavior: 'smooth' });
+  }, [activeChat, activeTypingUsers]);
 
 function sendSocket(payload) {
   if (socketRef.current?.readyState === WebSocket.OPEN) {
@@ -125,10 +164,10 @@ function sendSocket(payload) {
 function onChatChange(value) {
   setChatText(value);
   if (isLive) {
-    sendSocket({ type: 'chat:typing', autor: user?.nombre || 'Vecino', isTyping: Boolean(value.trim()) });
+    sendSocket({ type: 'chat:typing', autor: user?.nombre || 'Vecino', sector: activeSectorLabel, isTyping: Boolean(value.trim()) });
     clearTimeout(typingTimer.current);
     typingTimer.current = setTimeout(() => {
-      sendSocket({ type: 'chat:typing', autor: user?.nombre || 'Vecino', isTyping: false });
+      sendSocket({ type: 'chat:typing', autor: user?.nombre || 'Vecino', sector: activeSectorLabel, isTyping: false });
     }, 1100);
   }
 }
@@ -136,10 +175,10 @@ function onChatChange(value) {
 function sendChat(event) {
   event.preventDefault();
   if (!chatText.trim()) return;
-  const payload = { type: 'chat:send', autor: user?.nombre || 'Vecino', mensaje: chatText.trim() };
+  const payload = { type: 'chat:send', autor: user?.nombre || 'Vecino', sector: activeSectorLabel, mensaje: chatText.trim() };
   sendSocket(payload);
   setChatText('');
-  sendSocket({ type: 'chat:typing', autor: user?.nombre || 'Vecino', isTyping: false });
+  sendSocket({ type: 'chat:typing', autor: user?.nombre || 'Vecino', sector: activeSectorLabel, isTyping: false });
 }
 
 function sendDirectiva(event) {
@@ -157,7 +196,7 @@ function sendDirectiva(event) {
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="page-title">Comunidad en vivo</h1>
-          <p className="mt-1 text-sm font-semibold text-slate-500">Chat real por WebSocket, presencia vecinal y mensajes a la directiva.</p>
+          <p className="mt-1 text-sm font-semibold text-slate-500">Chat real por WebSocket organizado por sector, presencia vecinal y mensajes a la directiva.</p>
         </div>
 <div className="flex gap-2">
   <Badge>{presence.length} conectados</Badge>
@@ -178,7 +217,7 @@ function sendDirectiva(event) {
                 </div>
                 <div>
                   <h2 className="font-black text-neighbor-navy">Chat entre vecinos</h2>
-                  <p className="text-sm font-semibold text-slate-500">{chat.length} mensajes compartidos</p>
+                  <p className="text-sm font-semibold text-slate-500">{activeChat.length} mensajes en {activeSectorLabel}</p>
                 </div>
               </div>
               <span className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-black ${isLive ? 'bg-green-50 text-green-700' : 'bg-yellow-50 text-yellow-700'}`}>
@@ -186,6 +225,24 @@ function sendDirectiva(event) {
               </span>
             </div>
             <div className="mt-4 flex gap-2 overflow-x-auto pb-1">
+              {sectors.map((sector) => (
+                <button
+                  key={sector.key}
+                  type="button"
+                  onClick={() => setActiveSector(sector.key)}
+                  className={`inline-flex shrink-0 items-center gap-2 rounded-full border px-3 py-2 text-xs font-black transition ${
+                    activeSector === sector.key
+                      ? 'border-neighbor-blue bg-neighbor-blue text-white'
+                      : 'border-slate-200 bg-slate-50 text-slate-600 hover:border-neighbor-blue/50 hover:text-neighbor-blue'
+                  }`}
+                >
+                  <MapPin className="h-3.5 w-3.5" />
+                  {sector.label}
+                  <span className={`rounded-full px-2 py-0.5 text-[10px] ${activeSector === sector.key ? 'bg-white/20 text-white' : 'bg-white text-slate-500'}`}>{sector.count}</span>
+                </button>
+              ))}
+            </div>
+            <div className="mt-3 flex gap-2 overflow-x-auto pb-1">
               {presence.map((item) => (
                 <span key={item.id} className="inline-flex shrink-0 items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-bold text-slate-600">
                   <span className="flex h-6 w-6 items-center justify-center rounded-full bg-neighbor-mist text-[10px] font-black text-neighbor-blue">{avatarFor(item.nombre)}</span>
@@ -196,16 +253,16 @@ function sendDirectiva(event) {
           </div>
 
           <div ref={messagesRef} className="flex-1 space-y-4 overflow-y-auto bg-[#eef7fb] p-5">
-            {!chat.length && (
+            {!activeChat.length && (
               <div className="flex h-full items-center justify-center text-center">
                 <div>
                   <MessageCircle className="mx-auto h-10 w-10 text-neighbor-blue" />
-                  <p className="mt-3 font-black text-neighbor-navy">Todavia no hay mensajes</p>
-                  <p className="mt-1 text-sm font-semibold text-slate-500">Escribe el primero; aqui solo responden vecinos conectados.</p>
+                  <p className="mt-3 font-black text-neighbor-navy">Todavia no hay mensajes en {activeSectorLabel}</p>
+                  <p className="mt-1 text-sm font-semibold text-slate-500">Escribe el primero para este sector.</p>
                 </div>
               </div>
             )}
-            {chat.map((item) => {
+            {activeChat.map((item) => {
               const mine = item.autor === user?.nombre;
               return (
                 <article key={item.id} className={`flex gap-3 ${mine ? 'justify-end' : 'justify-start'}`}>
@@ -221,10 +278,10 @@ function sendDirectiva(event) {
                 </article>
               );
             })}
-            {typingUsers.length > 0 && (
+            {activeTypingUsers.length > 0 && (
               <div className="flex items-center gap-3 text-sm font-semibold text-slate-500">
                 <div className="rounded-2xl rounded-bl-md bg-white px-4 py-3 shadow-sm">
-                  {typingUsers.join(', ')} escribiendo<span className="animate-pulse">...</span>
+                  {activeTypingUsers.join(', ')} escribiendo<span className="animate-pulse">...</span>
                 </div>
               </div>
             )}
@@ -235,7 +292,7 @@ function sendDirectiva(event) {
             <div className="flex gap-2 rounded-lg border border-slate-200 bg-slate-50 p-2">
               <textarea
                 className="min-h-12 flex-1 resize-none bg-transparent px-2 py-2 text-sm outline-none"
-                placeholder="Escribe un mensaje en vivo para tus vecinos"
+                placeholder={`Escribe en ${activeSectorLabel}`}
                 value={chatText}
                 onChange={(e) => onChatChange(e.target.value)}
                 onKeyDown={(e) => {
