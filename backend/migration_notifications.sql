@@ -31,6 +31,7 @@ CREATE TABLE IF NOT EXISTS public.preferencias_notificaciones (
     comunicados BOOLEAN DEFAULT TRUE,
     directiva BOOLEAN DEFAULT FALSE,
     chat BOOLEAN DEFAULT FALSE,
+    novedades BOOLEAN DEFAULT TRUE,
     -- Notificaciones por email
     email_votaciones BOOLEAN DEFAULT TRUE,
     email_reuniones BOOLEAN DEFAULT TRUE,
@@ -46,6 +47,7 @@ CREATE TABLE IF NOT EXISTS public.preferencias_notificaciones (
 
 -- Índice para búsqueda rápida
 CREATE INDEX idx_preferencias_notificaciones_usuario_id ON public.preferencias_notificaciones(usuario_id);
+ALTER TABLE public.preferencias_notificaciones ADD COLUMN IF NOT EXISTS novedades BOOLEAN DEFAULT TRUE;
 
 -- Trigger para actualizar updated_at en notificaciones
 CREATE OR REPLACE FUNCTION update_notificaciones_updated_at()

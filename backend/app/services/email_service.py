@@ -118,3 +118,17 @@ class EmailService:
 
     def new_vote(self, recipients: list[str], title: str):
         return self.send(recipients, "Nueva votación disponible", f"<p>{title}</p>")
+
+    def password_reset(self, email: str, name: str, reset_url: str):
+        return self.send(
+            [email],
+            "Recuperar contrasena",
+            f"""
+            <h2>Hola {name}</h2>
+            <p>Recibimos una solicitud para cambiar la contrasena de tu cuenta.</p>
+            <p>Este enlace vence en 30 minutos y solo se puede usar una vez.</p>
+            <p><a href="{reset_url}" style="display:inline-block;background:#0b5cab;color:#ffffff;padding:12px 16px;border-radius:8px;text-decoration:none;font-weight:bold">Cambiar contrasena</a></p>
+            <p>Si no solicitaste este cambio, puedes ignorar este correo.</p>
+            """,
+            f"Abre este enlace para cambiar tu contrasena: {reset_url}"
+        )

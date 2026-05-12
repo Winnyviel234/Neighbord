@@ -47,6 +47,7 @@ def _compress_image(content: bytes, filename: str) -> tuple[bytes, str]:
 @dataclass
 class SupabaseResult:
     data: Any
+    count: int | None = None
 
 
 @dataclass
@@ -71,10 +72,14 @@ class SupabaseTable:
     def _url(self) -> str:
         return f"{settings.supabase_url.rstrip('/')}/rest/v1/{self.name}"
 
-    def select(self, columns: str = "*"):
+    def select(self, columns: str = "*", count: str | None = None):
         self.method = "GET"
         cleaned_columns = re.sub(r"\s+", " ", columns).strip()
         self.params["select"] = cleaned_columns
+        if count:
+            prefer = self.headers.get("Prefer") or "return=representation"
+            if "count=" not in prefer:
+                self.headers["Prefer"] = f"{prefer},count={count}"
         return self
 
     def insert(self, data: dict | list[dict]):
@@ -101,6 +106,22 @@ class SupabaseTable:
 
     def eq(self, column: str, value: Any):
         self.params[column] = f"eq.{value}"
+        return self
+
+    def gt(self, column: str, value: Any):
+        self.params[column] = f"gt.{value}"
+        return self
+
+    def gte(self, column: str, value: Any):
+        self.params[column] = f"gte.{value}"
+        return self
+
+    def lt(self, column: str, value: Any):
+        self.params[column] = f"lt.{value}"
+        return self
+
+    def lte(self, column: str, value: Any):
+        self.params[column] = f"lte.{value}"
         return self
 
     def or_(self, *conditions: str):
@@ -147,27 +168,52 @@ class SupabaseTable:
                     json=self.payload,
                     headers=headers,
                 )
+            content_range = response.headers.get("content-range", "")
+            total_count = None
+            if "/" in content_range:
+                try:
+                    total_count = int(content_range.rsplit("/", 1)[1])
+                except ValueError:
+                    total_count = None
             if response.status_code >= 400:
                 if response.status_code == 406 and accepts_single:
-                    return SupabaseResult(None)
+                    return SupabaseResult(None, count=0)
                 if response.status_code == 404 and method == "GET":
                     # Missing table or view in Supabase can happen in dev; return safe fallback rather than crashing.
-                    return SupabaseResult(None if accepts_single else [])
+                    return SupabaseResult(None if accepts_single else [], count=0)
                 response.raise_for_status()
             if not response.content:
                 if method == "DELETE":
-                    return SupabaseResult([{"deleted": True}])
-                return SupabaseResult(None)
+                    return SupabaseResult([{"deleted": True}], count=1)
+                return SupabaseResult(None, count=total_count)
             data = response.json()
             if method == "DELETE" and data == []:
-                return SupabaseResult([{"deleted": True}])
-            return SupabaseResult(data)
+                return SupabaseResult([{"deleted": True}], count=1)
+            return SupabaseResult(data, count=total_count)
         finally:
             self._reset()
 
 
 def table(name: str):
     return SupabaseTable(name)
+
+
+def execute_sql(sql: str):
+    """Execute raw SQL on Supabase using the exec_sql RPC function."""
+    if not settings.supabase_url or not settings.supabase_service_role_key:
+        raise RuntimeError("Configura SUPABASE_URL y SUPABASE_SERVICE_ROLE_KEY en backend/.env")
+
+    url = f"{settings.supabase_url.rstrip('/')}/rest/v1/rpc/exec_sql"
+    headers = {
+        "apikey": settings.supabase_service_role_key,
+        "Authorization": f"Bearer {settings.supabase_service_role_key}",
+        "Content-Type": "application/json",
+    }
+
+    with httpx.Client(timeout=20) as client:
+        response = client.post(url, json={"sql": sql}, headers=headers)
+    response.raise_for_status()
+    return response.json()
 
 
 def upload_to_storage(file, bucket: str = "neighborhood-images") -> str | None:

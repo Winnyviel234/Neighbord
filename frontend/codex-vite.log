@@ -1,79 +1,12 @@
 
 > neighbor-community-system@1.0.0 dev
-> vite --host 0.0.0.0 --port 5173 --strictPort
+> vite --host 0.0.0.0 --port 5173
 
+Port 5173 is in use, trying another one...
+Port 5174 is in use, trying another one...
+Port 5175 is in use, trying another one...
 
-  [32m[1mVITE[22m v6.4.2[39m  [2mready in [0m[1m925[22m[2m[0m ms[22m
+  [32m[1mVITE[22m v6.4.2[39m  [2mready in [0m[1m1257[22m[2m[0m ms[22m
 
-  [32m➜[39m  [1mLocal[22m:   [36mhttp://localhost:[1m5173[22m/[39m
-  [32m➜[39m  [1mNetwork[22m: [36mhttp://172.20.202.32:[1m5173[22m/[39m
-[2m9:48:48[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/context/AuthContext.jsx, /src/styles/globals.css[22m
-[2m9:48:49[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [33mhmr invalidate [39m[2m/src/context/AuthContext.jsx[22m Could not Fast Refresh ("useAuth" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
-[2m9:48:49[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2msrc/context/AuthContext.jsx[22m
-[2m9:48:54[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/context/AuthContext.jsx, /src/styles/globals.css[22m
-[2m9:49:03[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/context/AuthContext.jsx, /src/styles/globals.css[22m
-[2m9:49:04[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [33mhmr invalidate [39m[2m/src/context/AuthContext.jsx[22m Could not Fast Refresh ("useAuth" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
-[2m9:49:04[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2msrc/context/AuthContext.jsx[22m
-[2m9:49:07[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/App.jsx, /src/styles/globals.css[22m
-[2m9:49:12[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/pages/RegisterPage.jsx, /src/styles/globals.css[22m
-[2m8:20:18[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/styles/globals.css, /src/pages/PerfilPage.jsx, /src/pages/DashboardPage.jsx, /src/pages/DirectivaPage.jsx, /src/components/layout/Sidebar.jsx, /src/pages/ReunionesPage.jsx, /src/pages/VotacionesPage.jsx, /src/pages/ComunidadPage.jsx, /src/pages/FinanzasPage.jsx, /src/pages/PagosPage.jsx, /src/pages/LandingPage.jsx[22m
-[2m8:20:18[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/pages/VecinosPage.jsx, /src/styles/globals.css[22m
-[2m8:21:06[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/components/layout/Sidebar.jsx, /src/styles/globals.css[22m
-[2m8:21:06[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/App.jsx, /src/styles/globals.css[22m
-[2m8:21:06[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/pages/DirectivaPage.jsx, /src/styles/globals.css[22m
-[2m8:21:06[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/pages/ReunionesPage.jsx, /src/styles/globals.css[22m
-[2m8:21:06[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/pages/VotacionesPage.jsx, /src/styles/globals.css[22m
-[2m8:23:29[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/pages/LandingPage.jsx, /src/styles/globals.css[22m
-[2m8:37:11[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/context/AuthContext.jsx, /src/styles/globals.css[22m
-[2m8:37:11[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/App.jsx, /src/styles/globals.css[22m
-[2m8:37:14[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [33mhmr invalidate [39m[2m/src/context/AuthContext.jsx[22m Could not Fast Refresh ("useAuth" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
-[2m8:37:14[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2msrc/context/AuthContext.jsx[22m
-[2m8:40:12[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/pages/RegisterPage.jsx, /src/styles/globals.css[22m
-[2m8:40:12[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/context/AuthContext.jsx, /src/styles/globals.css[22m
-[2m8:50:06[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/components/layout/Sidebar.jsx, /src/styles/globals.css[22m
-[2m8:50:06[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/styles/globals.css, /src/pages/PerfilPage.jsx, /src/pages/DashboardPage.jsx, /src/pages/DirectivaPage.jsx, /src/components/layout/Sidebar.jsx, /src/pages/ReunionesPage.jsx, /src/pages/VotacionesPage.jsx, /src/pages/ComunidadPage.jsx, /src/pages/FinanzasPage.jsx, /src/pages/PagosPage.jsx, /src/pages/LandingPage.jsx, /src/pages/VecinosPage.jsx[22m
-[2m8:50:06[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/pages/VecinosPage.jsx, /src/styles/globals.css[22m
-[2m8:50:06[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/pages/DirectivaPage.jsx, /src/styles/globals.css[22m
-[2m8:50:06[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/pages/VotacionesPage.jsx, /src/styles/globals.css[22m
-[2m8:50:32[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/pages/ReunionesPage.jsx, /src/styles/globals.css[22m
-[2m8:51:43[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/styles/globals.css, /src/pages/PerfilPage.jsx, /src/pages/DashboardPage.jsx, /src/pages/DirectivaPage.jsx, /src/components/layout/Sidebar.jsx, /src/pages/ReunionesPage.jsx, /src/pages/VotacionesPage.jsx, /src/pages/ComunidadPage.jsx, /src/pages/FinanzasPage.jsx, /src/pages/PagosPage.jsx, /src/pages/LandingPage.jsx, /src/pages/VecinosPage.jsx[22m
-[2m8:51:43[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/pages/VecinosPage.jsx, /src/styles/globals.css[22m
-[2m8:51:43[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/pages/VotacionesPage.jsx, /src/styles/globals.css[22m
-[2m8:55:39[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/pages/RegisterPage.jsx, /src/styles/globals.css, /src/context/AuthContext.jsx, /src/pages/PerfilPage.jsx, /src/pages/NoticiasPage.jsx, /src/pages/MapaSectorPage.jsx, /src/pages/SolicitudesPage.jsx, /src/pages/NotificationPreferencesPage.jsx, /src/pages/NotificationCenterPage.jsx, /src/pages/DashboardPage.jsx, /src/pages/DirectivaPage.jsx, /src/pages/VecinosPage.jsx, /src/pages/ComunicadosPage.jsx, /src/pages/ReunionesPage.jsx, /src/pages/AdminDashboardPage.jsx, /src/pages/ReportesPage.jsx, /src/pages/AdminPublicacionesPage.jsx, /src/pages/VotacionesPage.jsx, /src/pages/ComunidadPage.jsx, /src/pages/FinanzasPage.jsx, /src/pages/PagosPage.jsx, /src/pages/LandingPage.jsx[22m
-[2m8:55:41[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [33mhmr invalidate [39m[2m/src/context/AuthContext.jsx[22m Could not Fast Refresh ("useAuth" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
-[2m8:55:41[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2msrc/context/AuthContext.jsx[22m
-[2m8:55:47[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/pages/RegisterPage.jsx, /src/styles/globals.css, /src/context/AuthContext.jsx, /src/pages/PerfilPage.jsx, /src/pages/NoticiasPage.jsx, /src/pages/MapaSectorPage.jsx, /src/pages/SolicitudesPage.jsx, /src/pages/NotificationPreferencesPage.jsx, /src/pages/NotificationCenterPage.jsx, /src/pages/DashboardPage.jsx, /src/pages/DirectivaPage.jsx, /src/pages/VecinosPage.jsx, /src/pages/ComunicadosPage.jsx, /src/pages/ReunionesPage.jsx, /src/pages/AdminDashboardPage.jsx, /src/pages/ReportesPage.jsx, /src/pages/AdminPublicacionesPage.jsx, /src/pages/VotacionesPage.jsx, /src/pages/ComunidadPage.jsx, /src/pages/FinanzasPage.jsx, /src/pages/PagosPage.jsx, /src/pages/LandingPage.jsx[22m
-[2m8:55:49[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [33mhmr invalidate [39m[2m/src/context/AuthContext.jsx[22m Could not Fast Refresh ("useAuth" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
-[2m8:55:49[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2msrc/context/AuthContext.jsx[22m
-[2m9:01:14[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/pages/DirectivaPage.jsx, /src/styles/globals.css[22m
-[2m9:01:35[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/pages/DirectivaPage.jsx, /src/styles/globals.css[22m
-[2m9:01:44[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/pages/DirectivaPage.jsx, /src/styles/globals.css[22m
-[2m9:01:52[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/pages/DirectivaPage.jsx, /src/styles/globals.css[22m
-[2m9:02:15[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/pages/DirectivaPage.jsx, /src/styles/globals.css[22m
-[2m9:27:58[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/pages/LandingPage.jsx, /src/styles/globals.css[22m
-[2m9:27:58[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/styles/globals.css, /src/pages/PerfilPage.jsx, /src/pages/DashboardPage.jsx, /src/pages/DirectivaPage.jsx, /src/components/layout/Sidebar.jsx, /src/pages/ReunionesPage.jsx, /src/pages/VotacionesPage.jsx, /src/pages/ComunidadPage.jsx, /src/pages/FinanzasPage.jsx, /src/pages/PagosPage.jsx, /src/pages/LandingPage.jsx, /src/pages/VecinosPage.jsx[22m
-[2m9:27:58[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/pages/VecinosPage.jsx, /src/styles/globals.css[22m
-[2m9:27:58[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/components/layout/Sidebar.jsx, /src/styles/globals.css[22m
-[2m9:27:58[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/App.jsx, /src/styles/globals.css[22m
-[2m9:27:59[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/pages/DirectivaPage.jsx, /src/styles/globals.css[22m
-[2m9:27:59[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/pages/ReunionesPage.jsx, /src/styles/globals.css[22m
-[2m9:27:59[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/pages/VotacionesPage.jsx, /src/styles/globals.css[22m
-[2m9:27:59[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/context/AuthContext.jsx, /src/styles/globals.css[22m
-[2m9:27:59[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/pages/RegisterPage.jsx, /src/styles/globals.css, /src/context/AuthContext.jsx, /src/pages/PerfilPage.jsx, /src/pages/NoticiasPage.jsx, /src/pages/MapaSectorPage.jsx, /src/pages/SolicitudesPage.jsx, /src/pages/NotificationPreferencesPage.jsx, /src/pages/NotificationCenterPage.jsx, /src/pages/DashboardPage.jsx, /src/pages/DirectivaPage.jsx, /src/pages/VecinosPage.jsx, /src/pages/ComunicadosPage.jsx, /src/pages/ReunionesPage.jsx, /src/pages/AdminDashboardPage.jsx, /src/pages/ReportesPage.jsx, /src/pages/AdminPublicacionesPage.jsx, /src/pages/VotacionesPage.jsx, /src/pages/ComunidadPage.jsx, /src/pages/FinanzasPage.jsx, /src/pages/PagosPage.jsx, /src/pages/LandingPage.jsx[22m
-[2m9:27:59[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/pages/RegisterPage.jsx, /src/styles/globals.css[22m
-[2m9:28:09[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [33mhmr invalidate [39m[2m/src/context/AuthContext.jsx[22m Could not Fast Refresh ("useAuth" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
-[2m9:28:09[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2msrc/context/AuthContext.jsx[22m
-[2m9:29:16[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/pages/RegisterPage.jsx, /src/styles/globals.css, /src/context/AuthContext.jsx, /src/pages/PerfilPage.jsx, /src/pages/NoticiasPage.jsx, /src/pages/MapaSectorPage.jsx, /src/pages/SolicitudesPage.jsx, /src/pages/NotificationPreferencesPage.jsx, /src/pages/NotificationCenterPage.jsx, /src/pages/DashboardPage.jsx, /src/pages/DirectivaPage.jsx, /src/pages/VecinosPage.jsx, /src/pages/ComunicadosPage.jsx, /src/pages/ReunionesPage.jsx, /src/pages/AdminDashboardPage.jsx, /src/pages/ReportesPage.jsx, /src/pages/AdminPublicacionesPage.jsx, /src/pages/VotacionesPage.jsx, /src/pages/ComunidadPage.jsx, /src/pages/FinanzasPage.jsx, /src/pages/PagosPage.jsx, /src/pages/LandingPage.jsx[22m
-[2m9:29:16[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/pages/VotacionesPage.jsx, /src/styles/globals.css[22m
-[2m9:29:19[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [33mhmr invalidate [39m[2m/src/context/AuthContext.jsx[22m Could not Fast Refresh ("useAuth" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
-[2m9:29:19[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2msrc/context/AuthContext.jsx[22m
-[2m9:29:27[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/pages/LandingPage.jsx, /src/styles/globals.css[22m
-[2m9:29:41[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/pages/LandingPage.jsx, /src/styles/globals.css[22m
-[2m9:33:17[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/pages/LandingPage.jsx, /src/styles/globals.css[22m
-[2m9:33:17[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/pages/RegisterPage.jsx, /src/styles/globals.css, /src/context/AuthContext.jsx, /src/pages/PerfilPage.jsx, /src/pages/NoticiasPage.jsx, /src/pages/MapaSectorPage.jsx, /src/pages/SolicitudesPage.jsx, /src/pages/NotificationPreferencesPage.jsx, /src/pages/NotificationCenterPage.jsx, /src/pages/DashboardPage.jsx, /src/pages/DirectivaPage.jsx, /src/pages/VecinosPage.jsx, /src/pages/ComunicadosPage.jsx, /src/pages/ReunionesPage.jsx, /src/pages/AdminDashboardPage.jsx, /src/pages/ReportesPage.jsx, /src/pages/AdminPublicacionesPage.jsx, /src/pages/VotacionesPage.jsx, /src/pages/ComunidadPage.jsx, /src/pages/FinanzasPage.jsx, /src/pages/PagosPage.jsx, /src/pages/LandingPage.jsx[22m
-[2m9:33:17[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/pages/VotacionesPage.jsx, /src/styles/globals.css[22m
-[2m9:44:23[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/pages/AdminDashboardPage.jsx, /src/styles/globals.css[22m
-[2m9:49:54[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/pages/LandingPage.jsx, /src/styles/globals.css[22m
-[2m9:49:59[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/pages/LandingPage.jsx, /src/styles/globals.css[22m
-[2m9:51:48[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/pages/LandingPage.jsx, /src/styles/globals.css[22m
-[2m9:51:49[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/pages/LandingPage.jsx, /src/styles/globals.css[22m
+  [32m➜[39m  [1mLocal[22m:   [36mhttp://localhost:[1m5176[22m/[39m
+  [32m➜[39m  [1mNetwork[22m: [36mhttp://192.168.0.13:[1m5176[22m/[39m

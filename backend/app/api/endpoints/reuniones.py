@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, UploadFile, File, Form, HTTPException, s
 from app.core.security import get_current_user, get_optional_current_user, require_roles, has_role
 from app.core.supabase import table, upload_to_storage
 from app.schemas.schemas import ReunionCreate, Reunion
+from app.services.notification_service import NotificationService
 
 router = APIRouter(prefix="/reuniones", tags=["reuniones"])
 
@@ -25,7 +26,7 @@ def list_reuniones(tipo: str | None = None, user: dict | None = Depends(get_opti
     return [Reunion(**reunion) for reunion in query.execute().data]
 
 @router.post("/form", response_model=Reunion, status_code=status.HTTP_201_CREATED)
-def create_reunion_form(
+async def create_reunion_form(
     titulo: str = Form(...),
     descripcion: str = Form(None),
     fecha: str = Form(...),
@@ -62,7 +63,14 @@ def create_reunion_form(
     reunion_data = _add_image(reunion_data, imagen)
     try:
         result = table("reuniones").insert(reunion_data).execute()
-        return Reunion(**result.data[0])
+        created = result.data[0]
+        try:
+            notifier = NotificationService()
+            recipients = await notifier.get_active_recipients()
+            await notifier.notify_reunion(created, recipients)
+        except Exception:
+            pass
+        return Reunion(**created)
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Error al guardar reunion: {str(e)}")
 

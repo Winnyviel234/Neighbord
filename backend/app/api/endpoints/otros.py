@@ -98,11 +98,13 @@ def public_landing(
 
     asambleas = table("reuniones").select("*").eq("tipo", "general").eq("estado", "programada").order("fecha", desc=True).limit(limit).execute().data
     directiva = table("directiva").select("*").eq("activo", True).order("cargo").limit(limit).execute().data
+    pagos = table("pagos_cuotas").select("id,estado,fecha_pago").order("fecha_pago", desc=True).limit(limit).execute().data
 
     return {
         "comunicados": comunicados,
         "noticias": noticias,
         "votaciones": votaciones[:limit],
+        "pagos": pagos,
         "asambleas": asambleas,
         "directiva": directiva
     }

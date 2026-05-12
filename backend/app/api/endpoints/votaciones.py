@@ -4,6 +4,7 @@ from httpx import HTTPStatusError
 from app.core.security import get_current_user, require_roles
 from app.core.supabase import table, upload_to_storage
 from app.schemas.schemas import VotacionIn, VotoIn
+from app.services.notification_service import NotificationService
 
 router = APIRouter(prefix="/votaciones", tags=["votaciones"])
 
@@ -125,7 +126,14 @@ async def create_votacion_form(
         if url:
             data["imagen_url"] = url
     try:
-        return table("votaciones").insert(data).execute().data[0]
+        created = table("votaciones").insert(data).execute().data[0]
+        try:
+            notifier = NotificationService()
+            recipients = await notifier.get_active_recipients()
+            await notifier.notify_votacion(created, recipients)
+        except Exception:
+            pass
+        return created
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Error al guardar votacion: {str(e)}")
 

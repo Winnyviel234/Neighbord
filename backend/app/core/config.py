@@ -1,4 +1,5 @@
 from functools import lru_cache
+from typing import Optional
 from pydantic_settings import BaseSettings
 
 
@@ -17,6 +18,7 @@ class Settings(BaseSettings):
 
     admin_name: str = "Administrador Neighbord"
     admin_email: str = "admin@gmail.com"
+    super_admin_email: Optional[str] = None
     admin_password: str = "CambiaEstaClave123"
 
     mail_username: str = ""

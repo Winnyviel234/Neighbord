@@ -1,9 +1,10 @@
 from pathlib import Path
 
-from fastapi import APIRouter, Depends, File, Form, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 
 from app.core.security import get_current_user, require_roles
 from app.core.supabase import table, upload_to_storage
+from app.services.notification_service import NotificationService
 
 router = APIRouter(prefix="/documentos", tags=["documentos"])
 
@@ -39,7 +40,7 @@ def list_documentos(user: dict = Depends(get_current_user)):
 
 
 @router.post("/form")
-def upload_documento(
+async def upload_documento(
     titulo: str = Form(...),
     descripcion: str = Form(None),
     archivo: UploadFile = File(...),
@@ -55,8 +56,37 @@ def upload_documento(
         "subido_por": user["id"]
     }
     try:
-        return table("documentos").insert(data).execute().data[0]
+        created = table("documentos").insert(data).execute().data[0]
     except Exception:
         data["id"] = Path(archivo_url or archivo.filename).name
         data["origen"] = "local"
-        return data
+        created = data
+    try:
+        notifier = NotificationService()
+        recipients = await notifier.get_active_recipients()
+        await notifier.notify_documento(created, recipients)
+    except Exception:
+        pass
+    return created
+
+
+@router.delete("/{documento_id}")
+def delete_documento(
+    documento_id: str,
+    user: dict = Depends(require_roles("admin", "directiva", "tesorero"))
+):
+    local_dir = Path(__file__).resolve().parents[2] / "uploads" / "documentos"
+    local_file = local_dir / Path(documento_id).name
+
+    if local_file.exists() and local_file.is_file():
+        local_file.unlink()
+        return {"id": documento_id, "deleted": True, "origen": "local"}
+
+    try:
+        deleted = table("documentos").delete().eq("id", documento_id).execute().data
+        if deleted:
+            return deleted[0]
+    except Exception:
+        pass
+
+    raise HTTPException(status_code=404, detail="Documento no encontrado")

@@ -30,7 +30,7 @@ export default function RegisterPage() {
   const { register, user } = useAuth();
   const navigate = useNavigate();
   const [sectors, setSectors] = useState([]);
-  const [form, setForm] = useState({ nombre: '', email: '', password: '', telefono: '', direccion: '', sector: '' });
+  const [form, setForm] = useState({ nombre: '', email: '', password: '', telefono: '', direccion: '', documento: '', sector: '' });
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
   const telefonoDigits = phoneDigits(form.telefono).length;
@@ -59,6 +59,7 @@ export default function RegisterPage() {
       password: form.password,
       telefono: cleanInput(form.telefono),
       direccion: cleanInput(form.direccion),
+      documento: cleanInput(form.documento),
       sector: cleanInput(form.sector)
     };
 
@@ -112,7 +113,8 @@ export default function RegisterPage() {
             ['email', 'Correo'],
             ['password', 'Contrasena'],
             ['telefono', 'Telefono'],
-            ['direccion', 'Direccion']
+            ['direccion', 'Direccion'],
+            ['documento', 'Documento de identidad']
           ].map(([key, label]) => (
             <label key={key} className="block">
               <span className="label">{label}</span>
@@ -120,10 +122,16 @@ export default function RegisterPage() {
                 className={`input mt-1 ${key === 'telefono' && telefonoError ? 'border-red-300 focus:border-red-500' : ''}`}
                 type={key === 'password' ? 'password' : key === 'email' ? 'email' : key === 'telefono' ? 'tel' : 'text'}
                 inputMode={key === 'telefono' ? 'tel' : undefined}
+                placeholder={key === 'documento' ? 'Cédula, DNI o pasaporte' : undefined}
                 value={form[key]}
                 onChange={(e) => setForm({ ...form, [key]: key === 'telefono' ? normalizePhoneInput(e.target.value) : e.target.value })}
                 required={['nombre', 'email', 'password', 'direccion'].includes(key)}
               />
+              {key === 'documento' && (
+                <span className="mt-1 block text-xs text-slate-500">
+                  Ingresa tu número de identidad oficial (cédula, DNI o pasaporte).
+                </span>
+              )}
               {key === 'telefono' && (
                 <span className={`mt-1 block text-xs font-semibold ${telefonoError ? 'text-red-600' : 'text-slate-500'}`}>
                   {telefonoError || `${telefonoDigits}/${PHONE_MAX_DIGITS} digitos`}

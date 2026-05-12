@@ -73,11 +73,11 @@ export default function VecinosPage() {
             </thead>
             <tbody>{rows.map((row) => (
               <tr key={row.id} className="border-t border-slate-100">
-                <td className="p-3 font-semibold">{row.nombre}</td><td>{row.email}</td><td>{row.direccion}</td><td>{roleLabel[row.rol] || row.rol}</td><td><Badge>{row.estado}</Badge></td>
+                <td className="p-3 font-semibold">{row.nombre}</td><td>{row.email}</td><td>{row.direccion}</td><td>{roleLabel[row.rol] || row.rol}</td><td>{row.rol === 'admin' ? <Badge>Administrador</Badge> : <Badge>{row.estado}</Badge>}</td>
                 <td className="p-3">
                   <div className="flex flex-wrap gap-2">
-                    {row.estado === 'pendiente' && <button className="btn-secondary" onClick={() => dataService.aprobarVecino(row.id).then(load)}><CheckCircle className="h-4 w-4" /> Aprobar</button>}
-                    {hasRole('admin') && (
+                    {row.estado === 'pendiente' && row.rol !== 'admin' && <button className="btn-secondary" onClick={() => dataService.aprobarVecino(row.id).then(load)}><CheckCircle className="h-4 w-4" /> Aprobar</button>}
+                    {hasRole('admin') && row.rol !== 'admin' && (
                       <>
                         <select className="input w-36" value={row.rol} onChange={(e) => dataService.cambiarRolVecino(row.id, e.target.value).then(load)}>
                           <option value="vecino">Vecino</option>

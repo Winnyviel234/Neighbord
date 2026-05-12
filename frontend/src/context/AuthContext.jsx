@@ -1,4 +1,5 @@
 import { createContext, useContext, useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { authService } from '../services/api';
 
 const defaultAuthContext = {
@@ -35,6 +36,7 @@ function isApprovedUser(user) {
 }
 
 export function AuthProvider({ children }) {
+  const navigate = useNavigate();
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -130,6 +132,7 @@ export function AuthProvider({ children }) {
       localStorage.removeItem('neighbor_token');
       setUser(null);
       setError(null);
+      navigate('/', { replace: true });
     },
     hasRole: (...roles) => !!user && roles.includes(user.rol),
     clearError: () => setError(null)

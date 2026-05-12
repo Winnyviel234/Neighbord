@@ -42,5 +42,6 @@ def landing_publica():
         "votaciones": votaciones,
         "pagos": table("pagos").select("*").order("fecha_pago", desc=True).limit(6).execute().data,
         "asambleas": table("reuniones").select("*").eq("tipo", "general").order("fecha", desc=False).limit(6).execute().data,
+        "reuniones": table("reuniones").select("*").eq("tipo", "directiva").order("fecha", desc=False).limit(6).execute().data,
         "directiva": table("directiva").select("*").eq("activo", True).order("cargo", desc=False).execute().data,
     }

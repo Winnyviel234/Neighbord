@@ -24,6 +24,7 @@ class NotificationPreferencesUpdate(BaseModel):
     comunicados: bool | None = None
     directiva: bool | None = None
     chat: bool | None = None
+    novedades: bool | None = None
     email_votaciones: bool | None = None
     email_reuniones: bool | None = None
     email_pagos: bool | None = None
@@ -69,7 +70,7 @@ async def get_notification(
     """Get specific notification"""
     notification = await notification_service.get_notification(notification_id)
     # Verify ownership
-    if str(notification.user_id) != user["id"] and user.get("role_name") != "admin":
+    if str(notification.usuario_id) != user["id"] and user.get("role_name") != "admin":
         from fastapi import HTTPException
         raise HTTPException(403, "No tienes acceso a esta notificación")
     return notification

@@ -29,6 +29,26 @@ def create_access_token(payload: dict) -> str:
     return jwt.encode(data, settings.jwt_secret_key, algorithm=settings.jwt_algorithm)
 
 
+def _resolve_user_role(user: dict) -> tuple[str, list[str]]:
+    role_name = user.get("rol", "vecino")
+    role_permissions = DEFAULT_ROLES.get(role_name, DEFAULT_ROLES["vecino"])["permissions"]
+    if user.get("role_id"):
+        try:
+            role_result = table("roles").select("name, permissions").eq("id", user["role_id"]).single().execute()
+            if role_result.data:
+                role_name = role_result.data.get("name", role_name)
+                role_permissions = role_result.data.get("permissions", role_permissions)
+        except Exception:
+            pass
+
+    super_email = settings.super_admin_email or settings.admin_email
+    if super_email and str(user.get("email", "")).strip().lower() == str(super_email).strip().lower():
+        role_name = "superadmin"
+        role_permissions = DEFAULT_ROLES["superadmin"]["permissions"]
+
+    return role_name, role_permissions
+
+
 def get_current_user(token: str = Depends(oauth2_scheme)) -> dict:
     credentials_error = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
@@ -52,18 +72,9 @@ def get_current_user(token: str = Depends(oauth2_scheme)) -> dict:
         raise credentials_error
 
     user = result.data
-    role_name = user.get("rol", "vecino")
-    role_permissions = DEFAULT_ROLES.get(role_name, DEFAULT_ROLES["vecino"])["permissions"]
-    if user.get("role_id"):
-        try:
-            role_result = table("roles").select("name, permissions").eq("id", user["role_id"]).single().execute()
-            if role_result.data:
-                role_name = role_result.data.get("name", role_name)
-                role_permissions = role_result.data.get("permissions", role_permissions)
-        except Exception:
-            pass
+    role_name, role_permissions = _resolve_user_role(user)
 
-    if user.get("estado") not in ["aprobado", "activo"] and role_name != "admin":
+    if user.get("estado") not in ["aprobado", "activo"] and role_name not in ["admin", "superadmin"]:
         raise approval_error
 
     sector_name = DEFAULT_SECTOR["name"]
@@ -97,18 +108,9 @@ def get_optional_current_user(token: str | None = Depends(oauth2_optional_scheme
         return None
 
     user = result.data
-    role_name = user.get("rol", "vecino")
-    role_permissions = DEFAULT_ROLES.get(role_name, DEFAULT_ROLES["vecino"])["permissions"]
-    if user.get("role_id"):
-        try:
-            role_result = table("roles").select("name, permissions").eq("id", user["role_id"]).single().execute()
-            if role_result.data:
-                role_name = role_result.data.get("name", role_name)
-                role_permissions = role_result.data.get("permissions", role_permissions)
-        except Exception:
-            pass
+    role_name, role_permissions = _resolve_user_role(user)
 
-    if user.get("estado") not in ["aprobado", "activo"] and role_name != "admin":
+    if user.get("estado") not in ["aprobado", "activo"] and role_name not in ["admin", "superadmin"]:
         return None
 
     sector_name = DEFAULT_SECTOR["name"]
@@ -156,6 +158,8 @@ def require_roles(*roles: Iterable[str]):
     allowed = set(roles)
 
     def dependency(user: dict = Depends(get_current_user)) -> dict:
+        if user.get("role_name") == "superadmin":
+            return user
         if user.get("role_name") not in allowed:
             raise HTTPException(status_code=403, detail="No tienes permisos para esta acción")
         return user
@@ -171,4 +175,6 @@ def has_role(user: dict, roles: list[str]) -> bool:
     """
     Verifica si el usuario tiene alguno de los roles especificados.
     """
+    if user.get("role_name") == "superadmin":
+        return True
     return user.get("role_name") in roles

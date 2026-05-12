@@ -42,12 +42,7 @@ export function liveSocketUrl() {
   return wsUrl;
 }
 
-const isDashboardEmpty = (payload) => {
-  if (!payload || typeof payload !== 'object') return true;
-  const counters = ['vecinos', 'solicitudes', 'reuniones', 'votaciones', 'pagos'];
-  const lists = ['ultimos_anuncios', 'reportes_recientes', 'eventos_proximos', 'votaciones_activas', 'cuotas_activas', 'pagos_recientes'];
-  return counters.every((key) => !Number(payload[key])) && lists.every((key) => !payload[key]?.length);
-};
+const isDashboardEmpty = (payload) => isEmptyPayload(payload);
 const deletedDemoKey = 'neighbor_deleted_ids';
 const isDemoId = (id) => String(id || '').startsWith('demo-');
 const deletedDemoIds = () => {
@@ -104,9 +99,9 @@ const mergeLandingData = (payload) => ({
   comunicados: mergeWithDemo(demoLanding.comunicados, payload?.comunicados || []),
   noticias: mergeWithDemo(demoLanding.noticias, payload?.noticias || []),
   votaciones: filterDeletedDemo((payload?.votaciones || []).filter((item) => !isDemoId(item?.id))),
-  pagos: mergeWithDemo(demoLanding.pagos, payload?.pagos || []),
-  asambleas: mergeWithDemo(demoLanding.asambleas, payload?.asambleas || []),
-  directiva: filterDeletedDemo(payload?.directiva || [])
+  pagos: filterDeletedDemo(payload?.pagos || []),
+  reuniones: filterDeletedDemo(payload?.reuniones || []),
+  directiva: Array.isArray(payload?.directiva) ? filterDeletedDemo(payload.directiva) : filterDeletedDemo(demoLanding.directiva)
 });
 const deleteWithDemo = (id, request) => {
   if (isDemoId(id)) {
@@ -148,6 +143,8 @@ export const authService = {
   me: () => api.get('/v2/auth/me').then((r) => r.data),
   updateMe: (data) => api.patch('/v2/auth/me', data).then((r) => r.data),
   changePassword: (data) => api.post('/v2/auth/change-password', data).then((r) => r.data),
+  requestPasswordReset: (data) => api.post('/v2/auth/password-reset/request', data).then((r) => r.data),
+  confirmPasswordReset: (data) => api.post('/v2/auth/password-reset/confirm', data).then((r) => r.data),
   getSectors: () => api.get('/v2/sectors').then((r) => r.data)
 };
 
@@ -198,10 +195,11 @@ export const dataService = {
   finalizarEleccion: (id) => api.post(`/votaciones/${id}/finalizar-eleccion`).then((r) => r.data),
   pagos: () => api.get('/cuotas/pagos').then((r) => r.data),
   crearPago: (data) => api.post('/finanzas/pagos', data).then((r) => r.data),
+  checkoutProjectContribution: (data) => api.post('/payments/strike', data).then((r) => r.data),
   crearPagoSolicitud: (data) => api.post('/finanzas/pagos/solicitud', data).then((r) => r.data),
   actualizarPago: (id, data) => api.patch(`/finanzas/pagos/${id}`, data).then((r) => r.data),
   eliminarPago: (id) => deleteWithDemo(id, () => api.delete(`/finanzas/pagos/${id}`)),
-  transacciones: () => getWithDemo(api.get('/finanzas/transacciones'), demoData.transacciones),
+  transacciones: () => getRealList(api.get('/finanzas/transacciones')),
   crearTransaccion: (data) => api.post('/finanzas/transacciones', data).then((r) => r.data),
   actualizarTransaccion: (id, data) => api.patch(`/finanzas/transacciones/${id}`, data).then((r) => r.data),
   eliminarTransaccion: (id) => deleteWithDemo(id, () => api.delete(`/finanzas/transacciones/${id}`)),
@@ -262,6 +260,7 @@ export const dataService = {
     const formData = buildFormData(data, 'archivo');
     return api.post('/documentos/form', formData, { headers: { 'Content-Type': 'multipart/form-data' } }).then((r) => r.data);
   },
+  eliminarDocumento: (id) => api.delete(`/documentos/${id}`).then((r) => r.data),
   reporteUrl: (tipo, formato) => `${api.defaults.baseURL}/reportes/${tipo}.${formato}`,
   getStatistics: (endpoint) => api.get(`/v2/statistics/${endpoint}`).then((r) => r.data),
   getAnalytics: () => api.get('/v2/statistics/analytics').then((r) => r.data),

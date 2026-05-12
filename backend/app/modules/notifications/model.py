@@ -1,13 +1,13 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict, Field, AliasChoices
 from typing import Optional
 from uuid import UUID
 from datetime import datetime
 
 class Notification(BaseModel):
     id: Optional[UUID]
-    user_id: UUID
+    usuario_id: UUID = Field(validation_alias=AliasChoices("usuario_id", "user_id"))
     titulo: str
-    mensaje: str
+    contenido: str = Field(validation_alias=AliasChoices("contenido", "mensaje"))
     tipo: str = "info"  # info, warning, error, success
     leida: bool = False
     referencia_id: Optional[UUID] = None  # ID del objeto relacionado (complaint, meeting, etc)
@@ -16,16 +16,18 @@ class Notification(BaseModel):
 
 class NotificationCreate(BaseModel):
     titulo: str
-    mensaje: str
+    contenido: str = Field(validation_alias=AliasChoices("contenido", "mensaje"))
     tipo: str = "info"
     referencia_id: Optional[UUID] = None
     referencia_tipo: Optional[str] = None
 
 class NotificationResponse(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+
     id: UUID
-    user_id: UUID
+    usuario_id: UUID = Field(validation_alias=AliasChoices("usuario_id", "user_id"))
     titulo: str
-    mensaje: str
+    contenido: str = Field(validation_alias=AliasChoices("contenido", "mensaje"))
     tipo: str
     leida: bool
     referencia_id: Optional[UUID] = None

@@ -155,6 +155,22 @@ alter table votaciones add column if not exists imagen_url text;
 alter table directiva add column if not exists imagen_url text;
 alter table noticias add column if not exists imagen_url text;
 
+create table if not exists noticia_comments (
+  id uuid primary key default gen_random_uuid(),
+  noticia_id uuid not null references noticias(id) on delete cascade,
+  usuario_id uuid not null references usuarios(id),
+  contenido text not null,
+  created_at timestamptz not null default now()
+);
+
+create table if not exists comunicado_comments (
+  id uuid primary key default gen_random_uuid(),
+  comunicado_id uuid not null references comunicados(id) on delete cascade,
+  usuario_id uuid not null references usuarios(id),
+  contenido text not null,
+  created_at timestamptz not null default now()
+);
+
 create table if not exists documentos (
   id uuid primary key default gen_random_uuid(),
   titulo text not null,
@@ -220,6 +236,8 @@ create index if not exists idx_pagos_cuotas_cuota on pagos_cuotas(cuota_id);
 create index if not exists idx_pagos_cuotas_vecino on pagos_cuotas(vecino_id);
 create index if not exists idx_pagos_cuotas_estado on pagos_cuotas(estado);
 create index if not exists idx_documentos_created_at on documentos(created_at desc);
+create index if not exists idx_noticia_comments_noticia on noticia_comments(noticia_id);
+create index if not exists idx_comunicado_comments_comunicado on comunicado_comments(comunicado_id);
 create index if not exists idx_noticias_publicado on noticias(publicado, created_at desc);
 
 delete from comunicados a

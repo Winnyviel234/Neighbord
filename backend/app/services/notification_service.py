@@ -4,6 +4,7 @@ Maneja templates y envío de notificaciones para diferentes eventos
 """
 from typing import Dict, Any, Optional, List
 from datetime import datetime
+import re
 from app.services.email_service import EmailService
 from app.services.whatsapp_service import WhatsAppService
 from app.core.supabase import table
@@ -14,6 +15,18 @@ class NotificationService:
         self.whatsapp_service = WhatsAppService()
         self.notifications_table = table("notificaciones")
         self.user_preferences_table = table("preferencias_notificaciones")
+
+    def _plain_text(self, html: str) -> str:
+        return re.sub(r"\s+", " ", re.sub(r"<[^>]+>", " ", html or "")).strip()
+
+    async def get_active_recipients(self) -> list[Dict[str, Any]]:
+        """Usuarios registrados que pueden recibir avisos comunitarios."""
+        result = table("usuarios") \
+            .select("id,nombre,email,telefono,estado,activo") \
+            .eq("activo", True) \
+            .in_("estado", ["aprobado", "activo"]) \
+            .execute()
+        return result.data or []
 
     async def save_notification(self, user_id: str, notification_data: Dict[str, Any]) -> Dict[str, Any]:
         """Guardar notificación en la base de datos"""
@@ -32,9 +45,12 @@ class NotificationService:
 
     async def get_user_preferences(self, user_id: str) -> Dict[str, bool]:
         """Obtener preferencias de notificación del usuario"""
-        result = self.user_preferences_table.select("*").eq("usuario_id", user_id).execute()
-        if result.data:
-            return result.data[0]
+        try:
+            result = self.user_preferences_table.select("*").eq("usuario_id", user_id).execute()
+            if result.data:
+                return result.data[0]
+        except Exception:
+            pass
         
         # Preferencias por defecto
         default_prefs = {
@@ -46,6 +62,7 @@ class NotificationService:
             "comunicados": True,
             "directiva": True,
             "chat": True,
+            "novedades": True,
             "email_votaciones": True,
             "email_reuniones": True,
             "email_pagos": True,
@@ -54,14 +71,17 @@ class NotificationService:
             "email_directiva": False,
             "email_chat": False
         }
-        self.user_preferences_table.insert(default_prefs).execute()
+        try:
+            self.user_preferences_table.insert(default_prefs).execute()
+        except Exception:
+            pass
         return default_prefs
 
     async def save_user_preferences(self, user_id: str, prefs: Dict[str, bool]) -> Dict[str, bool]:
         """Guardar o actualizar preferencias de notificación del usuario"""
         data = {"usuario_id": user_id}
         allowed_keys = [
-            "votaciones", "reuniones", "pagos", "solicitudes", "comunicados", "directiva", "chat",
+            "votaciones", "reuniones", "pagos", "solicitudes", "comunicados", "directiva", "chat", "novedades",
             "email_votaciones", "email_reuniones", "email_pagos", "email_solicitudes", "email_comunicados",
             "email_directiva", "email_chat"
         ]
@@ -69,7 +89,11 @@ class NotificationService:
             if key in prefs:
                 data[key] = bool(prefs[key])
 
-        result = self.user_preferences_table.upsert(data, on_conflict="usuario_id").execute()
+        try:
+            result = self.user_preferences_table.upsert(data, on_conflict="usuario_id").execute()
+        except Exception:
+            data.pop("novedades", None)
+            result = self.user_preferences_table.upsert(data, on_conflict="usuario_id").execute()
         if result.data:
             return result.data[0]
         return data
@@ -183,14 +207,101 @@ class NotificationService:
             "referencia_tipo": "comunicado"
         }
 
+    def _notification_noticia(self, noticia_data: Dict[str, Any]) -> Dict[str, str]:
+        return {
+            "titulo": f"Nueva noticia: {noticia_data.get('titulo', '')}",
+            "contenido": f"""
+                <h3>{noticia_data.get('titulo', '')}</h3>
+                <p>{noticia_data.get('resumen') or noticia_data.get('contenido', '')}</p>
+                <p><a href="https://neighbord.app/app/noticias" style="color: #0b5cab; text-decoration: none; font-weight: bold;">Ver noticia</a></p>
+            """,
+            "tipo": "noticia",
+            "referencia_tipo": "noticia"
+        }
+
+    def _notification_documento(self, documento_data: Dict[str, Any]) -> Dict[str, str]:
+        return {
+            "titulo": f"Nuevo documento: {documento_data.get('titulo', documento_data.get('nombre_archivo', 'Documento'))}",
+            "contenido": f"""
+                <h3>{documento_data.get('titulo', 'Documento disponible')}</h3>
+                <p>{documento_data.get('descripcion') or documento_data.get('nombre_archivo') or 'Se subio un nuevo archivo para la comunidad.'}</p>
+                <p><a href="https://neighbord.app/app/otros" style="color: #0b5cab; text-decoration: none; font-weight: bold;">Ver documento</a></p>
+            """,
+            "tipo": "documento",
+            "referencia_tipo": "documento"
+        }
+
+    async def notify_publication(
+        self,
+        publication_data: Dict[str, Any],
+        recipients: list[Dict[str, Any]],
+        app_key: str,
+        email_key: str | None,
+        notification: Dict[str, str]
+    ) -> Dict[str, Any]:
+        """Crear avisos en bandeja y mandar correo solo a quienes lo pidieron."""
+        app_sent = 0
+        email_recipients: list[str] = []
+
+        for recipient in recipients:
+            prefs = await self.get_user_preferences(recipient["id"])
+            wants_app = bool(prefs.get(app_key) or prefs.get("novedades"))
+            wants_email = bool(email_key and prefs.get(email_key))
+
+            if wants_app:
+                await self.save_notification(recipient["id"], {
+                    **notification,
+                    "referencia_id": publication_data.get("id")
+                })
+                app_sent += 1
+
+            if wants_email and recipient.get("email"):
+                email_recipients.append(recipient["email"])
+
+        email_result = {"sent": False, "detail": "Sin destinatarios con preferencia de Gmail activa."}
+        if email_recipients:
+            email_result = self.email_service.send(
+                email_recipients,
+                notification["titulo"],
+                notification["contenido"],
+                self._plain_text(notification["contenido"])
+            )
+
+        return {"app_sent": app_sent, "email": email_result, "type": notification.get("tipo")}
+
+    async def notify_noticia(self, noticia_data: Dict[str, Any], recipients: list[Dict[str, Any]]) -> Dict[str, Any]:
+        return await self.notify_publication(
+            noticia_data,
+            recipients,
+            "novedades",
+            "email_comunicados",
+            self._notification_noticia(noticia_data)
+        )
+
+    async def notify_documento(self, documento_data: Dict[str, Any], recipients: list[Dict[str, Any]]) -> Dict[str, Any]:
+        return await self.notify_publication(
+            documento_data,
+            recipients,
+            "novedades",
+            "email_comunicados",
+            self._notification_documento(documento_data)
+        )
+
     async def notify_votacion(self, votacion_data: Dict[str, Any], recipients: list[Dict[str, Any]]) -> Dict[str, Any]:
         """Notificar sobre nueva votación"""
+        return await self.notify_publication(
+            votacion_data,
+            recipients,
+            "votaciones",
+            "email_votaciones",
+            self._notification_votacion(votacion_data)
+        )
         notification = self._notification_votacion(votacion_data)
         
         # Guardar notificaciones individuales
         for recipient in recipients:
             prefs = await self.get_user_preferences(recipient["id"])
-            if prefs.get("votaciones"):
+            if prefs.get("votaciones") or prefs.get("novedades"):
                 await self.save_notification(recipient["id"], {
                     **notification,
                     "referencia_id": votacion_data.get("id")
@@ -219,11 +330,18 @@ class NotificationService:
 
     async def notify_reunion(self, reunion_data: Dict[str, Any], recipients: list[Dict[str, Any]]) -> Dict[str, Any]:
         """Notificar sobre nueva reunión"""
+        return await self.notify_publication(
+            reunion_data,
+            recipients,
+            "reuniones",
+            "email_reuniones",
+            self._notification_reunion(reunion_data)
+        )
         notification = self._notification_reunion(reunion_data)
         
         for recipient in recipients:
             prefs = await self.get_user_preferences(recipient["id"])
-            if prefs.get("reuniones"):
+            if prefs.get("reuniones") or prefs.get("novedades"):
                 await self.save_notification(recipient["id"], {
                     **notification,
                     "referencia_id": reunion_data.get("id")
@@ -254,7 +372,7 @@ class NotificationService:
         notification = self._notification_pago(pago_data)
         
         prefs = await self.get_user_preferences(user_id)
-        if prefs.get("pagos"):
+        if prefs.get("pagos") or prefs.get("novedades"):
             await self.save_notification(user_id, {
                 **notification,
                 "referencia_id": pago_data.get("id")
@@ -279,7 +397,7 @@ class NotificationService:
         notification = self._notification_solicitud(solicitud_data)
         
         prefs = await self.get_user_preferences(user_id)
-        if prefs.get("solicitudes"):
+        if prefs.get("solicitudes") or prefs.get("novedades"):
             await self.save_notification(user_id, {
                 **notification,
                 "referencia_id": solicitud_data.get("id")
@@ -300,11 +418,18 @@ class NotificationService:
 
     async def notify_comunicado(self, comunicado_data: Dict[str, Any], recipients: list[Dict[str, Any]]) -> Dict[str, Any]:
         """Notificar sobre nuevo comunicado"""
+        return await self.notify_publication(
+            comunicado_data,
+            recipients,
+            "comunicados",
+            "email_comunicados",
+            self._notification_comunicado(comunicado_data)
+        )
         notification = self._notification_comunicado(comunicado_data)
         
         for recipient in recipients:
             prefs = await self.get_user_preferences(recipient["id"])
-            if prefs.get("comunicados"):
+            if prefs.get("comunicados") or prefs.get("novedades"):
                 await self.save_notification(recipient["id"], {
                     **notification,
                     "referencia_id": comunicado_data.get("id")

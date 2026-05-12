@@ -52,6 +52,13 @@ def update_vecino(vecino_id: str, payload: VecinoIn, user: dict = Depends(requir
 
 @router.delete("/{vecino_id}")
 def delete_vecino(vecino_id: str, user: dict = Depends(require_roles("admin"))):
+    target = table("usuarios").select("id,rol").eq("id", vecino_id).single().execute().data
+    if not target:
+        raise HTTPException(status_code=404, detail="Usuario no encontrado")
+    if target.get("rol") == "admin":
+        raise HTTPException(status_code=403, detail="No se puede eliminar una cuenta de administrador")
+    if target.get("id") == user["id"]:
+        raise HTTPException(status_code=403, detail="No puedes eliminar tu propia cuenta de administrador")
     return table("usuarios").update({"activo": False, "estado": "inactivo"}).eq("id", vecino_id).execute().data[0]
 
 

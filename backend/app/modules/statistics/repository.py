@@ -13,6 +13,50 @@ class StatisticsRepository:
         self.complaints_table = table("solicitudes")
         self.chat_rooms_table = table("chat_rooms")
 
+    def _safe_rows(self, table_name: str, columns: str = "*") -> List[Dict[str, Any]]:
+        try:
+            rows = table(table_name).select(columns).execute().data or []
+            return rows if isinstance(rows, list) else []
+        except Exception:
+            return []
+
+    def _safe_count(self, table_name: str, query=None) -> int:
+        try:
+            request = table(table_name).select("id", count="exact")
+            if query:
+                request = query(request)
+            result = request.execute()
+            if result.count is not None:
+                return result.count
+            return len(result.data or [])
+        except Exception:
+            return 0
+
+    def _count_by_field(self, table_name: str, field: str) -> Dict[str, int]:
+        counts: Dict[str, int] = {}
+        for row in self._safe_rows(table_name, field):
+            value = row.get(field) or "Sin dato"
+            counts[str(value)] = counts.get(str(value), 0) + 1
+        return counts
+
+    def _recent_count(self, table_name: str, date_field: str, days: int) -> int:
+        cutoff = datetime.now() - timedelta(days=days)
+        count = 0
+        for row in self._safe_rows(table_name, date_field):
+            value = row.get(date_field)
+            if not value:
+                continue
+            try:
+                normalized = str(value).replace("Z", "+00:00")
+                parsed = datetime.fromisoformat(normalized)
+                if parsed.tzinfo is not None:
+                    parsed = parsed.replace(tzinfo=None)
+                if parsed >= cutoff:
+                    count += 1
+            except ValueError:
+                continue
+        return count
+
     async def get_user_statistics(self) -> Dict[str, Any]:
         """Get user statistics"""
         # cache_key = "statistics:user_statistics"
@@ -22,42 +66,12 @@ class StatisticsRepository:
 
     async def get_user_statistics(self) -> Dict[str, Any]:
         """Get user statistics"""
-        try:
-            # Total users
-            total_users = self.users_table.select("*", count="exact").execute()
-            total_count = total_users.count or 0
-
-            # Active users (last 30 days)
-            thirty_days_ago = (datetime.now() - timedelta(days=30)).isoformat()
-            active_users = self.users_table.select("*", count="exact").gte("created_at", thirty_days_ago).execute()
-            active_count = active_users.count or 0
-
-            # Users by role
-            role_stats = self.users_table.select("rol", count="exact").execute()
-            roles = {}
-            for stat in role_stats.data or []:
-                roles[stat["rol"]] = stat["count"]
-
-            # Users by status
-            status_stats = self.users_table.select("estado", count="exact").execute()
-            statuses = {}
-            for stat in status_stats.data or []:
-                statuses[stat["estado"]] = stat["count"]
-
-            result = {
-                "total_users": total_count,
-                "active_users_30d": active_count,
-                "users_by_role": roles,
-                "users_by_status": statuses
-            }
-            return result
-        except Exception as e:
-            return {
-                "total_users": 0,
-                "active_users_30d": 0,
-                "users_by_role": {},
-                "users_by_status": {}
-            }
+        return {
+            "total_users": self._safe_count("usuarios"),
+            "active_users_30d": self._recent_count("usuarios", "created_at", 30),
+            "users_by_role": self._count_by_field("usuarios", "rol"),
+            "users_by_status": self._count_by_field("usuarios", "estado")
+        }
 
     async def get_payment_statistics(self) -> Dict[str, Any]:
         """Get payment statistics"""
@@ -66,12 +80,8 @@ class StatisticsRepository:
         # if cached is not None:
         #     return cached
 
-        # Total payments
-        total_payments = self.payments_table.select("*", count="exact").execute()
-        total_count = total_payments.count or 0
-
-        # Total amount
-        amount_result = self.payments_table.select("monto").execute()
+        total_count = self._safe_count("pagos")
+        amount_result = table("pagos").select("monto").execute()
         total_amount = 0.0
         if amount_result.data:
             for p in amount_result.data:
@@ -82,29 +92,12 @@ class StatisticsRepository:
                 except (ValueError, TypeError):
                     pass  # Skip invalid amounts
 
-        # Payments by status
-        status_stats = self.payments_table.select("estado", count="exact").execute()
-        statuses = {}
-        for stat in status_stats.data or []:
-            statuses[stat["estado"]] = stat["count"]
-
-        # Payments by method
-        method_stats = self.payments_table.select("metodo", count="exact").execute()
-        methods = {}
-        for stat in method_stats.data or []:
-            methods[stat["metodo"]] = stat["count"]
-
-        # Recent payments (last 30 days)
-        thirty_days_ago = (datetime.now() - timedelta(days=30)).isoformat()
-        recent_payments = self.payments_table.select("*", count="exact").gte("created_at", thirty_days_ago).execute()
-        recent_count = recent_payments.count or 0
-
         result = {
             "total_payments": total_count,
             "total_amount": total_amount,
-            "payments_by_status": statuses,
-            "payments_by_method": methods,
-            "recent_payments_30d": recent_count
+            "payments_by_status": self._count_by_field("pagos", "estado"),
+            "payments_by_method": self._count_by_field("pagos", "metodo"),
+            "recent_payments_30d": self._recent_count("pagos", "created_at", 30)
         }
         # await cache.set(cache_key, result, ttl=180)
         return result
@@ -116,28 +109,11 @@ class StatisticsRepository:
         # if cached is not None:
         #     return cached
 
-        # Total votings
-        total_votings = self.votings_table.select("*", count="exact").execute()
-        total_count = total_votings.count or 0
-
-        # Active votings
-        active_votings = self.votings_table.select("*", count="exact").eq("estado", "activa").execute()
-        active_count = active_votings.count or 0
-
-        # Total votes
-        total_votes = self.votes_table.select("*", count="exact").execute()
-        votes_count = total_votes.count or 0
-
-        # Recent votings (last 30 days)
-        thirty_days_ago = (datetime.now() - timedelta(days=30)).isoformat()
-        recent_votings = self.votings_table.select("*", count="exact").gte("created_at", thirty_days_ago).execute()
-        recent_count = recent_votings.count or 0
-
         result = {
-            "total_votings": total_count,
-            "active_votings": active_count,
-            "total_votes": votes_count,
-            "recent_votings_30d": recent_count
+            "total_votings": self._safe_count("votaciones"),
+            "active_votings": self._safe_count("votaciones", lambda q: q.eq("estado", "activa")),
+            "total_votes": self._safe_count("votos"),
+            "recent_votings_30d": self._recent_count("votaciones", "created_at", 30)
         }
         # await cache.set(cache_key, result, ttl=180)
         return result
@@ -149,18 +125,10 @@ class StatisticsRepository:
         # if cached is not None:
         #     return cached
 
-        # Total meetings
-        total_meetings = self.meetings_table.select("*", count="exact").execute()
-        total_count = total_meetings.count or 0
-
-        # Upcoming meetings
         now = datetime.now().isoformat()
-        upcoming_meetings = self.meetings_table.select("*", count="exact").gte("fecha", now).execute()
-        upcoming_count = upcoming_meetings.count or 0
-
-        # Past meetings
-        past_meetings = self.meetings_table.select("*", count="exact").lt("fecha", now).execute()
-        past_count = past_meetings.count or 0
+        total_count = self._safe_count("reuniones")
+        upcoming_count = self._safe_count("reuniones", lambda q: q.gte("fecha", now))
+        past_count = self._safe_count("reuniones", lambda q: q.lt("fecha", now))
 
         # Attendance statistics - simplified
         # For now, just set to 0, can be improved later
@@ -184,32 +152,11 @@ class StatisticsRepository:
         # if cached is not None:
         #     return cached
 
-        # Total complaints
-        total_complaints = self.complaints_table.select("*", count="exact").execute()
-        total_count = total_complaints.count or 0
-
-        # Complaints by status
-        status_stats = self.complaints_table.select("estado", count="exact").execute()
-        statuses = {}
-        for stat in status_stats.data or []:
-            statuses[stat["estado"]] = stat["count"]
-
-        # Complaints by category
-        category_stats = self.complaints_table.select("categoria", count="exact").execute()
-        categories = {}
-        for stat in category_stats.data or []:
-            categories[stat["categoria"]] = stat["count"]
-
-        # Recent complaints (last 30 days)
-        thirty_days_ago = (datetime.now() - timedelta(days=30)).isoformat()
-        recent_complaints = self.complaints_table.select("*", count="exact").gte("created_at", thirty_days_ago).execute()
-        recent_count = recent_complaints.count or 0
-
         result = {
-            "total_complaints": total_count,
-            "complaints_by_status": statuses,
-            "complaints_by_category": categories,
-            "recent_complaints_30d": recent_count
+            "total_complaints": self._safe_count("solicitudes"),
+            "complaints_by_status": self._count_by_field("solicitudes", "estado"),
+            "complaints_by_category": self._count_by_field("solicitudes", "categoria"),
+            "recent_complaints_30d": self._recent_count("solicitudes", "created_at", 30)
         }
         # await cache.set(cache_key, result, ttl=180)
         return result

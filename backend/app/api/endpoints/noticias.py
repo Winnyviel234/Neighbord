@@ -4,6 +4,7 @@ from time import time
 
 from app.core.security import get_current_user, require_roles
 from app.core.supabase import table, upload_to_storage
+from app.services.notification_service import NotificationService
 
 router = APIRouter(prefix="/noticias", tags=["noticias"])
 _CACHE = {"at": 0.0, "data": None}
@@ -36,7 +37,7 @@ def list_noticias(
 
 
 @router.post("/form")
-def create_noticia_form(
+async def create_noticia_form(
     titulo: str = Form(...),
     resumen: str = Form(...),
     contenido: str = Form(...),
@@ -53,6 +54,13 @@ def create_noticia_form(
     }
     data = _add_image(data, imagen)
     created = table("noticias").insert(data).execute().data[0]
+    if publicado:
+        try:
+            notifier = NotificationService()
+            recipients = await notifier.get_active_recipients()
+            await notifier.notify_noticia(created, recipients)
+        except Exception:
+            pass
     _CACHE.update({"at": 0.0, "data": None})
     return created
 
@@ -95,3 +103,26 @@ def delete_noticia(noticia_id: str, user: dict = Depends(require_roles("admin"))
     deleted = table("noticias").delete().eq("id", noticia_id).execute().data[0]
     _CACHE.update({"at": 0.0, "data": None})
     return deleted
+
+@router.get("/{noticia_id}/comments")
+def list_noticia_comments(noticia_id: str):
+    """
+    Lista los comentarios de una noticia específica.
+    """
+    return table("noticia_comments").select("*, usuarios(nombre)").eq("noticia_id", noticia_id).order("created_at", desc=False).execute().data
+
+@router.post("/{noticia_id}/comments")
+def create_noticia_comment(
+    noticia_id: str,
+    contenido: str = Form(...),
+    user: dict = Depends(get_current_user)
+):
+    """
+    Agrega un nuevo comentario a una noticia.
+    """
+    data = {
+        "noticia_id": noticia_id,
+        "usuario_id": user["id"],
+        "contenido": contenido
+    }
+    return table("noticia_comments").insert(data).execute().data[0]

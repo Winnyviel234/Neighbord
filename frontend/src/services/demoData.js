@@ -64,17 +64,8 @@ export const demoData = {
     { id: 'demo-cuota-1', titulo: 'Cuota mensual mayo', descripcion: 'Aporte ordinario para mantenimiento y seguridad.', monto: 80, fecha_vencimiento: isoIn(12, 23), estado: 'activa' },
     { id: 'demo-cuota-2', titulo: 'Fondo de iluminacion', descripcion: 'Compra e instalacion de luminarias LED.', monto: 45, fecha_vencimiento: isoIn(20, 23), estado: 'activa' }
   ],
-  pagos: [
-    { id: 'demo-pago-1', concepto: 'Cuota mensual abril', monto: 80, fecha_pago: isoIn(-6, 11), usuarios: { nombre: 'Ana Morales', email: 'ana.morales@neighbor.local' } },
-    { id: 'demo-pago-2', concepto: 'Fondo de seguridad', monto: 55, fecha_pago: isoIn(-4, 15), usuarios: { nombre: 'Mariela Quispe', email: 'mariela.quispe@neighbor.local' } },
-    { id: 'demo-pago-3', concepto: 'Cuota mensual mayo', monto: 80, fecha_pago: isoIn(-1, 10), usuarios: { nombre: 'Carlos Rojas', email: 'carlos.rojas@neighbor.local' } }
-  ],
-  transacciones: [
-    { id: 'demo-transaccion-1', tipo: 'ingreso', categoria: 'Cuotas', monto: 4280, fecha: isoIn(-2, 9), descripcion: 'Recaudacion parcial de cuotas mensuales' },
-    { id: 'demo-transaccion-2', tipo: 'ingreso', categoria: 'Aportes especiales', monto: 1350, fecha: isoIn(-9, 14), descripcion: 'Fondo de iluminacion comunitaria' },
-    { id: 'demo-transaccion-3', tipo: 'egreso', categoria: 'Mantenimiento', monto: 980, fecha: isoIn(-5, 16), descripcion: 'Reparacion de luminarias y pintura de senaletica' },
-    { id: 'demo-transaccion-4', tipo: 'egreso', categoria: 'Seguridad', monto: 720, fecha: isoIn(-12, 12), descripcion: 'Insumos para rondas vecinales' }
-  ],
+  pagos: [],
+  transacciones: [],
   notificacionesTiempoReal: [
     { id: 'demo-notificacion-1', tipo: 'Seguridad', titulo: 'Ronda vecinal iniciada', mensaje: 'Sector norte confirma recorrido preventivo.', fecha: isoIn(0, 20), estado: 'nuevo' },
     { id: 'demo-notificacion-2', tipo: 'Finanzas', titulo: 'Nuevo pago registrado', mensaje: 'Tesoreria actualizo el resumen de cuotas.', fecha: isoIn(0, 11), estado: 'visto' },
@@ -104,7 +95,8 @@ export const demoLanding = {
   comunicados: demoData.comunicados,
   noticias: demoData.noticias,
   votaciones: demoData.votaciones,
-  pagos: demoData.pagos,
+  pagos: [],
+  reuniones: demoData.reuniones.filter((item) => item.tipo !== 'general'),
   asambleas: demoData.reuniones.filter((item) => item.tipo === 'general'),
   directiva: demoData.directiva
 };
@@ -114,22 +106,22 @@ export const demoDashboard = {
   solicitudes: demoData.solicitudes.length,
   reuniones: demoData.reuniones.length,
   votaciones: demoData.votaciones.filter((item) => item.estado === 'activa').length,
-  pagos: demoData.pagos.length,
+  pagos: 0,
   rol: 'admin',
   resumen: {
     comunidad: 'Sistema comunitario activo',
-    estado: 'Mostrando datos demo para presentacion'
+    estado: 'Conectado a datos reales'
   },
   ultimos_anuncios: [...demoData.comunicados, ...demoData.noticias].slice(0, 5),
   reportes_recientes: demoData.solicitudes,
   eventos_proximos: demoData.reuniones,
   votaciones_activas: demoData.votaciones,
-  cuotas_activas: demoData.cuotas,
-  pagos_recientes: demoData.pagos,
+  cuotas_activas: [],
+  pagos_recientes: [],
   notificaciones: [
     { titulo: 'Presentacion lista', mensaje: 'La pagina usa datos demo cuando no hay registros reales.' },
     { titulo: 'Votaciones', mensaje: `${demoData.votaciones.length} votaciones activas de ejemplo.` },
-    { titulo: 'Finanzas', mensaje: `${demoData.cuotas.length} cuotas activas para mostrar.` }
+    { titulo: 'Finanzas', mensaje: 'Sin pagos reales registrados en la web.' }
   ]
 };
 

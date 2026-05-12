@@ -6,16 +6,16 @@ import { demoLanding } from '../services/demoData';
 import { dateTime } from '../lib/utils';
 import { useAuth } from '../context/AuthContext';
 
-const empty = { comunicados: [], noticias: [], votaciones: [], asambleas: [], directiva: [], pagos: [] };
-const whatsappNumber = import.meta.env.VITE_WHATSAPP_NUMBER || '59170011223';
+const empty = { comunicados: [], noticias: [], votaciones: [], reuniones: [], directiva: [], pagos: [] };
+const whatsappNumber = String(import.meta.env.VITE_WHATSAPP_NUMBER || '59170011223').replace(/\D/g, '');
 const whatsappMessage = encodeURIComponent('Hola, quiero recibir informacion sobre Neighbord y la comunidad.');
 const whatsappUrl = `https://wa.me/${whatsappNumber}?text=${whatsappMessage}`;
 const withDemo = (payload) => ({
   comunicados: payload?.comunicados?.length ? payload.comunicados : demoLanding.comunicados,
   noticias: payload?.noticias?.length ? payload.noticias : demoLanding.noticias,
   votaciones: payload?.votaciones || [],
-  pagos: payload?.pagos?.length ? payload.pagos : demoLanding.pagos,
-  asambleas: payload?.asambleas?.length ? payload.asambleas : demoLanding.asambleas,
+  pagos: payload?.pagos || [],
+  reuniones: payload?.reuniones?.length ? payload.reuniones : demoLanding.reuniones,
   directiva: payload?.directiva?.length ? payload.directiva : demoLanding.directiva
 });
 
@@ -144,6 +144,20 @@ function LazyImage({ src, alt, className = '', fallback: FallbackComponent, ...p
   );
 }
 
+function WhatsAppIcon({ className = '' }) {
+  return (
+    <svg
+      viewBox="0 0 32 32"
+      aria-hidden="true"
+      focusable="false"
+      className={className}
+      fill="currentColor"
+    >
+      <path d="M16.01 3.2c-7.06 0-12.8 5.7-12.8 12.72 0 2.25.6 4.45 1.73 6.38L3.1 29l6.9-1.8a12.9 12.9 0 0 0 6.01 1.52c7.06 0 12.8-5.7 12.8-12.72S23.07 3.2 16.01 3.2Zm0 23.36c-1.9 0-3.77-.5-5.4-1.45l-.39-.23-4.1 1.07 1.1-3.98-.26-.41a10.5 10.5 0 0 1-1.6-5.64c0-5.83 4.78-10.56 10.65-10.56s10.65 4.73 10.65 10.56-4.78 10.64-10.65 10.64Zm5.84-7.9c-.32-.16-1.9-.94-2.2-1.04-.3-.11-.52-.16-.74.16-.21.31-.84 1.04-1.03 1.25-.19.21-.38.24-.7.08-.32-.16-1.35-.5-2.57-1.58-.95-.85-1.6-1.9-1.78-2.22-.19-.32-.02-.49.14-.65.14-.14.32-.38.48-.57.16-.19.21-.32.32-.54.11-.21.05-.4-.03-.56-.08-.16-.73-1.76-1-2.41-.26-.63-.53-.54-.73-.55h-.62c-.21 0-.56.08-.86.4-.3.32-1.13 1.1-1.13 2.68s1.16 3.11 1.32 3.33c.16.21 2.29 3.47 5.54 4.86.77.33 1.37.53 1.84.68.77.24 1.47.21 2.03.13.62-.09 1.9-.78 2.17-1.53.27-.75.27-1.4.19-1.53-.08-.13-.29-.21-.61-.37Z" />
+    </svg>
+  );
+}
+
 export default function LandingPage() {
   const { user, loading: authLoading } = useAuth();
   const [data, setData] = useState(withDemo(empty));
@@ -152,8 +166,6 @@ export default function LandingPage() {
   const [voting, setVoting] = useState({});
   const [voteMessage, setVoteMessage] = useState('');
   const [selectedOptions, setSelectedOptions] = useState({});
-  const [reuniones, setReuniones] = useState([]);
-  const [reunionesLoading, setReunionesLoading] = useState(false);
 
   const isAuthenticated = Boolean(user);
   const showGuestActions = !authLoading && !isAuthenticated;
@@ -217,7 +229,7 @@ export default function LandingPage() {
     try {
       const payload = await dataService.landing();
       const votaciones = payload?.votaciones || [];
-      const hasRealData = ['comunicados', 'noticias', 'votaciones', 'pagos', 'asambleas', 'directiva']
+      const hasRealData = ['comunicados', 'noticias', 'votaciones', 'pagos', 'reuniones', 'directiva']
         .some((key) => Array.isArray(payload?.[key]) && payload[key].some((item) => !isDemoId(item?.id)));
       setIsRealData(hasRealData);
       const votedOptions = {};
@@ -231,9 +243,9 @@ export default function LandingPage() {
         comunicados: payload?.comunicados?.length ? payload.comunicados : demoLanding.comunicados,
         noticias: payload?.noticias?.length ? payload.noticias : demoLanding.noticias,
         votaciones,
-        pagos: payload?.pagos?.length ? payload.pagos : demoLanding.pagos,
-        asambleas: payload?.asambleas?.length ? payload.asambleas : demoLanding.asambleas,
-        directiva: payload?.directiva?.length ? payload.directiva : demoLanding.directiva
+        pagos: payload?.pagos || [],
+        reuniones: payload?.reuniones || [],
+        directiva: payload?.directiva || []
       });
     } catch {
       setData(withDemo(empty));
@@ -250,22 +262,69 @@ export default function LandingPage() {
     return titulo.length > 2 && descripcion.length > 2 && lugar.length > 1;
   };
 
+  const closedVotaciones = useMemo(() => {
+    return (data.votaciones || []).filter((item) => item.estado === 'cerrada' && Array.isArray(item.opciones_stats) && item.opciones_stats.length > 0);
+  }, [data.votaciones]);
+
+  const closedResultsSummary = useMemo(() => {
+    const totalVotos = closedVotaciones.reduce((sum, item) => sum + (item.total_votos || 0), 0);
+    return {
+      total: closedVotaciones.length,
+      totalVotos
+    };
+  }, [closedVotaciones]);
+
+  const participationRate = (item) => {
+    if (typeof item.participacion === 'number') return `${item.participacion}%`;
+    if (typeof item.participation_rate === 'number') return `${item.participation_rate}%`;
+    if (item.eligible_voters && item.total_votos != null && item.eligible_voters > 0) {
+      return `${Math.round((item.total_votos * 100) / item.eligible_voters)}%`;
+    }
+    return 'N/A';
+  };
+
+  const chartPath = (startAngle, endAngle, radius, cx, cy) => {
+    const startX = cx + radius * Math.cos(startAngle);
+    const startY = cy + radius * Math.sin(startAngle);
+    const endX = cx + radius * Math.cos(endAngle);
+    const endY = cy + radius * Math.sin(endAngle);
+    const largeArcFlag = endAngle - startAngle > Math.PI ? 1 : 0;
+    return `M ${cx} ${cy} L ${startX} ${startY} A ${radius} ${radius} 0 ${largeArcFlag} 1 ${endX} ${endY} Z`;
+  };
+
+  const loadLanding = async () => {
+    setLoading(true);
+    try {
+      const payload = await dataService.landing();
+      const votaciones = payload?.votaciones || [];
+      const hasRealData = ['comunicados', 'noticias', 'votaciones', 'pagos', 'reuniones', 'directiva']
+        .some((key) => Array.isArray(payload?.[key]) && payload[key].some((item) => !isDemoId(item?.id)));
+      setIsRealData(hasRealData);
+      const votedOptions = {};
+      votaciones.forEach((v) => {
+        if (v.mi_voto) {
+          votedOptions[v.id] = v.mi_voto;
+        }
+      });
+      setSelectedOptions(votedOptions);
+      setData({
+        comunicados: payload?.comunicados?.length ? payload.comunicados : demoLanding.comunicados,
+        noticias: payload?.noticias?.length ? payload.noticias : demoLanding.noticias,
+        votaciones,
+        pagos: payload?.pagos || [],
+        reuniones: payload?.reuniones || [],
+        directiva: payload?.directiva || []
+      });
+    } catch {
+      setData(withDemo(empty));
+      setIsRealData(false);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
     loadLanding();
-
-    const loadReuniones = async () => {
-      setReunionesLoading(true);
-      try {
-        const events = await dataService.reuniones();
-        setReuniones((events || []).filter(isValidEvent));
-      } catch {
-        setReuniones([]);
-      } finally {
-        setReunionesLoading(false);
-      }
-    };
-
-    loadReuniones();
   }, []);
 
   const realVotaciones = useMemo(() => {
@@ -282,20 +341,34 @@ export default function LandingPage() {
     };
   }, [realVotaciones]);
 
+  const reuniones = useMemo(() => {
+    return (data.reuniones || []).filter((item) => item.tipo !== 'general' && isValidEvent(item));
+  }, [data.reuniones]);
+
   const stats = useMemo(() => {
     const votacionesActivas = realVotaciones.filter((item) => item.estado === 'activa').length;
     const documentosCount = data.comunicados.length + data.noticias.length;
 
     return [
-      { icon: Users, value: '324', label: 'Vecinos activos', sub: 'Participantes conectados', color: 'from-blue-500 to-blue-600' },
+      { icon: Users, value: data.directiva.length ? `${data.directiva.length}` : '0', label: 'Directiva activa', sub: 'Cargos publicados en el sistema', color: 'from-blue-500 to-blue-600' },
       { icon: Vote, value: `${votacionesActivas}`, label: 'Votaciones activas', sub: 'Consultas abiertas del barrio', color: 'from-green-500 to-green-600' },
       { icon: FileText, value: `${documentosCount}`, label: 'Documentos', sub: 'Comunicados y noticias disponibles', color: 'from-purple-500 to-purple-600' },
-      { icon: PieChart, value: '$125K', label: 'Fondos comunitarios', sub: 'Presupuesto estimado', color: 'from-orange-500 to-orange-600' }
+      { icon: PieChart, value: `${data.pagos.length}`, label: 'Pagos registrados', sub: data.pagos.length ? 'Pagos reales cargados en la web' : 'Sin pagos reales en la web', color: 'from-orange-500 to-orange-600' }
     ];
   }, [data, realVotaciones]);
 
   return (
     <main className="min-h-screen bg-[linear-gradient(180deg,#f6fbfd_0%,#ffffff_34%,#eef7fb_100%)] text-slate-900">
+      <a
+        href={whatsappUrl}
+        target="_blank"
+        rel="noopener noreferrer"
+        aria-label="Contactar por WhatsApp"
+        className="fixed bottom-5 right-5 z-50 inline-flex h-14 w-14 items-center justify-center rounded-full bg-[#25D366] text-white shadow-xl shadow-emerald-900/25 transition hover:scale-105 hover:bg-[#1ebe5d] focus:outline-none focus:ring-4 focus:ring-emerald-300"
+      >
+        <WhatsAppIcon className="h-7 w-7" />
+      </a>
+
       {/* Navbar */}
       <section className="sticky top-0 z-50 border-b border-slate-200/70 bg-white/90 shadow-sm shadow-slate-900/5 backdrop-blur-xl">
         <header className="mx-auto flex max-w-7xl items-center justify-between px-6 py-3">
@@ -311,6 +384,7 @@ export default function LandingPage() {
           <nav className="hidden items-center gap-7 text-sm font-bold text-slate-600 lg:flex">
             <a href="#caracteristicas" className="hover:text-neighbor-blue transition">Características</a>
             <a href="#actividad" className="hover:text-neighbor-blue transition">Actividad</a>
+            <a href="#proyectos" className="hover:text-neighbor-blue transition">Proyectos</a>
             <a href="#directiva" className="hover:text-neighbor-blue transition">Directiva</a>
             <a href="#contacto" className="hover:text-neighbor-blue transition">Contacto</a>
           </nav>
@@ -577,6 +651,102 @@ export default function LandingPage() {
         </div>
       </SectionWrapper>
 
+      {closedVotaciones.length > 0 && (
+        <SectionWrapper id="resultados" className="py-20 bg-slate-50" delay={700}>
+          <div className="mx-auto max-w-7xl px-6">
+            <div className="flex flex-wrap items-center justify-between gap-4 mb-12">
+              <div>
+                <p className="text-sm font-bold text-neighbor-green uppercase tracking-wider">resultados</p>
+                <h2 className="mt-2 text-4xl font-black text-neighbor-navy">Resultados de votaciones cerradas</h2>
+                <p className="mt-4 max-w-2xl text-lg text-slate-600">Mira los resultados públicos con gráficos de barras, porcentajes por opción y total de votos.</p>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <span className="inline-flex items-center gap-2 bg-white rounded-full px-4 py-2 border border-slate-200 text-sm font-bold text-neighbor-blue">
+                  <Vote className="h-4 w-4" />
+                  {closedResultsSummary.total} votaciones cerradas
+                </span>
+                <span className="inline-flex items-center gap-2 bg-white rounded-full px-4 py-2 border border-slate-200 text-sm font-bold text-slate-600">
+                  <TrendingUp className="h-4 w-4" />
+                  {closedResultsSummary.totalVotos} votos totales
+                </span>
+              </div>
+            </div>
+
+            <div className="grid gap-6 lg:grid-cols-2">
+              {closedVotaciones.map((item) => {
+                const totalVotes = item.total_votos || item.opciones_stats.reduce((sum, stat) => sum + (stat.count || 0), 0);
+                const slices = item.opciones_stats.map((stat) => ({
+                  ...stat,
+                  percentage: stat.percentage ?? (totalVotes ? Math.round((stat.count * 100) / totalVotes) : 0)
+                }));
+                let angleStart = -Math.PI / 2;
+                const colors = ['#2563eb', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#14b8a6'];
+                return (
+                  <article key={item.id} className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+                    <div className="flex flex-wrap items-start justify-between gap-4">
+                      <div className="min-w-0">
+                        <h3 className="text-xl font-black text-neighbor-navy">{item.titulo}</h3>
+                        <p className="mt-2 text-sm text-slate-600">{item.descripcion || 'Resultados públicos tras cierre de votación.'}</p>
+                      </div>
+                      <div className="rounded-2xl bg-slate-100 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Cerrada</div>
+                    </div>
+
+                    <div className="mt-6 grid gap-6 lg:grid-cols-[180px_1fr]">
+                      <div className="rounded-3xl bg-slate-50 p-4 text-center">
+                        <svg width="160" height="160" viewBox="0 0 160 160" className="mx-auto">
+                          <circle cx="80" cy="80" r="70" fill="#e2e8f0" />
+                          {slices.map((slice, index) => {
+                            const sliceAngle = (slice.percentage / 100) * Math.PI * 2;
+                            const path = chartPath(angleStart, angleStart + sliceAngle, 70, 80, 80);
+                            angleStart += sliceAngle;
+                            return (
+                              <path key={slice.opcion} d={path} fill={colors[index % colors.length]} />
+                            );
+                          })}
+                          <circle cx="80" cy="80" r="42" fill="#ffffff" />
+                        </svg>
+                        <p className="mt-4 text-sm uppercase tracking-[0.2em] text-slate-500">Participación</p>
+                        <p className="text-2xl font-black text-neighbor-navy mt-2">{participationRate(item)}</p>
+                      </div>
+
+                      <div className="space-y-4">
+                        <div className="grid gap-3">
+                          {slices.map((stat, index) => (
+                            <div key={stat.opcion} className="space-y-2">
+                              <div className="flex items-center justify-between text-sm font-semibold text-slate-700">
+                                <span className="truncate">{optionLabel(stat.opcion)}</span>
+                                <span>{stat.count} votos · {stat.percentage}%</span>
+                              </div>
+                              <div className="h-3 overflow-hidden rounded-full bg-slate-100">
+                                <div
+                                  className="h-full rounded-full"
+                                  style={{ width: `${stat.percentage}%`, backgroundColor: colors[index % colors.length] }}
+                                />
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+
+                        <div className="grid gap-3 sm:grid-cols-2">
+                          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm">
+                            <p className="text-slate-500">Total de votos</p>
+                            <p className="mt-2 text-xl font-black text-neighbor-navy">{totalVotes}</p>
+                          </div>
+                          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm">
+                            <p className="text-slate-500">Tasa de participación</p>
+                            <p className="mt-2 text-xl font-black text-neighbor-navy">{participationRate(item)}</p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
+          </div>
+        </SectionWrapper>
+      )}
+
       {/* Comunicados Section */}
       <SectionWrapper className="py-20 bg-[#f8fbff]" delay={800}>
         <div className="mx-auto max-w-7xl px-6">
@@ -705,39 +875,43 @@ export default function LandingPage() {
         </div>
       </SectionWrapper>
 
-      {/* Asambleas Section */}
-      <section className="py-20 bg-[#f8fbff]">
+      {/* Proyectos Section */}
+      <SectionWrapper id="proyectos" className="py-20 bg-[#f3fcf7]" delay={1400}>
         <div className="mx-auto max-w-7xl px-6">
           <div className="flex flex-wrap items-center justify-between gap-4 mb-12">
             <div>
-              <p className="text-sm font-bold text-neighbor-green uppercase tracking-wider">Asambleas</p>
-              <h2 className="mt-3 text-4xl font-black text-neighbor-navy">Asambleas programadas</h2>
-              <p className="mt-4 max-w-2xl text-lg text-slate-600">Fechas oficiales de asambleas comunitarias.</p>
+              <p className="text-sm font-bold text-neighbor-green uppercase tracking-wider">Proyectos comunitarios</p>
+              <h2 className="mt-3 text-4xl font-black text-neighbor-navy">Colabora con iniciativas del barrio</h2>
+              <p className="mt-4 max-w-2xl text-lg text-slate-600">Aporta económicamente a proyectos reales que fortalecen la seguridad, la cultura y el cuidado del espacio común.</p>
             </div>
-            <Link to="/app/reuniones" className="btn-secondary px-5 py-3">Ver todas las reuniones</Link>
+            <div className="flex flex-wrap gap-3">
+              {isAuthenticated ? (
+                <Link to="/app/proyectos" className="btn-primary px-5 py-3">Aportar ahora</Link>
+              ) : (
+                <>
+                  <Link to="/login" className="btn-secondary px-5 py-3">Iniciar sesión</Link>
+                  <Link to="/registro" className="btn-primary px-5 py-3">Crear cuenta</Link>
+                </>
+              )}
+            </div>
           </div>
+
           <div className="grid gap-6 lg:grid-cols-3">
-            {loading ? (
-              Array.from({ length: 6 }).map((_, i) => (
-                <SkeletonCard key={i} className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm" />
-              ))
-            ) : (
-              data.asambleas.filter(isValidEvent).slice(0, 6).map((item) => (
-                <div key={item.id} className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-                  <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-[0.24em] text-neighbor-green">
-                    <CalendarDays className="h-4 w-4" />
-                    Asamblea
-                  </div>
-                  <h3 className="mt-3 text-xl font-black text-neighbor-navy">{item.titulo}</h3>
-                  <p className="mt-3 text-sm leading-6 text-slate-600">{item.descripcion}</p>
-                  <p className="mt-4 text-xs uppercase tracking-[0.18em] text-slate-500">{dateTime(item.fecha)}</p>
-                  <p className="mt-2 text-xs text-slate-500">{item.lugar}</p>
-                </div>
-              ))
-            )}
+            {[
+              { title: 'Huerta colectiva', description: 'Mejora espacios verdes y fomenta la participación con herramientas y plantas comunitarias.' },
+              { title: 'Seguridad vecinal', description: 'Apoya iluminación, vigilancia y proyectos que mantienen el barrio más seguro y conectado.' },
+              { title: 'Eventos barriales', description: 'Contribuye a actividades que reúnen a los vecinos y fortalecen la vida comunitaria.' }
+            ].map((project) => (
+              <article key={project.title} className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+                <p className="text-xs font-bold uppercase tracking-[0.18em] text-neighbor-green">Proyecto</p>
+                <h3 className="mt-3 text-2xl font-black text-neighbor-navy">{project.title}</h3>
+                <p className="mt-3 text-sm leading-6 text-slate-600">{project.description}</p>
+                <p className="mt-5 text-sm font-semibold text-slate-500">Aporte con pago seguro y seguimiento transparente en el sistema.</p>
+              </article>
+            ))}
           </div>
         </div>
-      </section>
+      </SectionWrapper>
 
       {/* Reuniones Section */}
       <section className="py-20 bg-white" id="reuniones">
@@ -751,7 +925,7 @@ export default function LandingPage() {
             <Link to="/app/reuniones" className="btn-secondary px-5 py-3">Ver todas las reuniones</Link>
           </div>
           <div className="grid gap-6 lg:grid-cols-3">
-            {reunionesLoading ? (
+            {loading ? (
               Array.from({ length: 6 }).map((_, i) => (
                 <SkeletonCard key={i} className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm" />
               ))
@@ -760,7 +934,7 @@ export default function LandingPage() {
                 <div key={item.id} className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
                   <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-[0.24em] text-neighbor-green">
                     <CalendarDays className="h-4 w-4" />
-                    {item.tipo === 'general' ? 'Asamblea' : 'Reunión'}
+                    Reunión
                   </div>
                   <h3 className="mt-3 text-xl font-black text-neighbor-navy">{item.titulo}</h3>
                   <p className="mt-3 text-sm leading-6 text-slate-600">{item.descripcion}</p>
@@ -922,7 +1096,7 @@ export default function LandingPage() {
                   rel="noopener noreferrer"
                   className="flex items-center gap-2 text-white/75 transition hover:text-white"
                 >
-                  <MessageCircle className="h-4 w-4 text-neighbor-green" />
+                  <WhatsAppIcon className="h-4 w-4 text-neighbor-green" />
                   WhatsApp directo
                 </a>
                 <p className="flex items-center gap-2">

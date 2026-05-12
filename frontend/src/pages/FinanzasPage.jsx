@@ -68,15 +68,16 @@ export default function FinanzasPage() {
   }
 
   if (!pagos || !transacciones || !cuotas) return <Spinner />;
-  const ingresos = transacciones.filter((t) => t.tipo === 'ingreso').reduce((sum, item) => sum + Number(item.monto), 0);
-  const egresos = transacciones.filter((t) => t.tipo === 'egreso').reduce((sum, item) => sum + Number(item.monto), 0);
+  const hasFinancialRows = transacciones.length > 0 || pagos.length > 0;
+  const ingresos = transacciones.filter((t) => t.tipo === 'ingreso').reduce((sum, item) => sum + Number(item.monto || 0), 0);
+  const egresos = transacciones.filter((t) => t.tipo === 'egreso').reduce((sum, item) => sum + Number(item.monto || 0), 0);
   return (
     <section>
       <h1 className="page-title">Finanzas</h1>
       <div className="mt-6 grid gap-4 md:grid-cols-3">
-        <Box label="Ingresos" value={money(ingresos)} />
-        <Box label="Egresos" value={money(egresos)} />
-        <Box label="Balance" value={money(ingresos - egresos)} />
+        <Box label="Ingresos" value={hasFinancialRows ? money(ingresos) : 'Sin pagos reales'} />
+        <Box label="Egresos" value={transacciones.length ? money(egresos) : 'Sin egresos reales'} />
+        <Box label="Balance" value={hasFinancialRows ? money(ingresos - egresos) : 'Sin balance real'} />
       </div>
       {hasRole('admin', 'tesorero') && (
         <form onSubmit={createCuota} className="card mt-6 grid gap-4 p-5 md:grid-cols-2">

@@ -32,6 +32,7 @@ class PreferenciasNotificacionesBase(BaseModel):
     comunicados: bool = True
     directiva: bool = False
     chat: bool = False
+    novedades: bool = True
     email_votaciones: bool = True
     email_reuniones: bool = True
     email_pagos: bool = True
@@ -48,6 +49,7 @@ class PreferenciasNotificacionesUpdate(BaseModel):
     comunicados: Optional[bool] = None
     directiva: Optional[bool] = None
     chat: Optional[bool] = None
+    novedades: Optional[bool] = None
     email_votaciones: Optional[bool] = None
     email_reuniones: Optional[bool] = None
     email_pagos: Optional[bool] = None

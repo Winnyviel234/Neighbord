@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from app.core.security import get_current_user
 from app.modules.auth.service import AuthService
-from app.modules.auth.model import RegisterRequest, LoginRequest, PasswordChangeRequest, ProfileUpdateRequest
+from app.modules.auth.model import RegisterRequest, LoginRequest, PasswordChangeRequest, PasswordResetConfirmRequest, PasswordResetRequest, ProfileUpdateRequest
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -31,3 +31,13 @@ async def update_me(payload: ProfileUpdateRequest, user: dict = Depends(get_curr
 async def change_password(payload: PasswordChangeRequest, user: dict = Depends(get_current_user)):
     """Change current user password"""
     return await auth_service.change_password(user["id"], payload)
+
+@router.post("/password-reset/request")
+async def request_password_reset(payload: PasswordResetRequest):
+    """Request a secure password reset link"""
+    return await auth_service.request_password_reset(payload)
+
+@router.post("/password-reset/confirm")
+async def confirm_password_reset(payload: PasswordResetConfirmRequest):
+    """Confirm password reset with a one-time token"""
+    return await auth_service.reset_password(payload)

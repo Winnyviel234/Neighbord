@@ -41,6 +41,13 @@ class PasswordChangeRequest(BaseModel):
     password_actual: str
     password_nueva: str
 
+class PasswordResetRequest(BaseModel):
+    email: EmailStr
+
+class PasswordResetConfirmRequest(BaseModel):
+    token: str = Field(min_length=32, max_length=256)
+    password_nueva: str = Field(min_length=6, max_length=72)
+
 class ProfileUpdateRequest(BaseModel):
     nombre: Optional[str] = None
     telefono: Optional[str] = None

@@ -1,12 +1,17 @@
 from typing import Optional, Dict, Any
 from uuid import UUID
-from app.core.supabase import table
+from app.core.supabase import execute_sql, table
+from app.core.config import settings
 from app.modules.base import BaseRepository
 
 # Hardcoded roles for reliability - no database dependency
 DEFAULT_ROLES = {
     "admin": {
         "name": "admin",
+        "permissions": ["all"]
+    },
+    "superadmin": {
+        "name": "superadmin",
         "permissions": ["all"]
     },
     "directiva": {
@@ -43,6 +48,21 @@ class AuthRepository(BaseRepository):
     def _table(self):
         return table("usuarios")
 
+    def ensure_password_reset_table(self) -> None:
+        sql = """
+        CREATE TABLE IF NOT EXISTS public.password_reset_tokens (
+            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+            usuario_id UUID NOT NULL REFERENCES public.usuarios(id) ON DELETE CASCADE,
+            token_hash TEXT NOT NULL UNIQUE,
+            expires_at TIMESTAMP NOT NULL,
+            used_at TIMESTAMP,
+            created_at TIMESTAMP DEFAULT NOW()
+        );
+        CREATE INDEX IF NOT EXISTS idx_password_reset_tokens_hash ON public.password_reset_tokens(token_hash);
+        CREATE INDEX IF NOT EXISTS idx_password_reset_tokens_usuario ON public.password_reset_tokens(usuario_id);
+        """
+        execute_sql(sql)
+
     def _get_role_info(self, role_name: str = "vecino") -> Dict[str, Any]:
         """Get role information with fallback to hardcoded defaults"""
         return DEFAULT_ROLES.get(role_name, DEFAULT_ROLES["vecino"])
@@ -50,6 +70,20 @@ class AuthRepository(BaseRepository):
     def _get_sector_info(self) -> Dict[str, Any]:
         """Get sector information with fallback"""
         return DEFAULT_SECTOR
+
+    def _apply_super_admin_alias(self, user: Dict[str, Any]) -> None:
+        """Treat a configured email as superadmin without changing the stored admin name."""
+        if not user:
+            return
+
+        role_name = user.get("role_name") or user.get("rol") or "vecino"
+        if role_name == "admin":
+            return
+
+        super_email = settings.super_admin_email or settings.admin_email
+        if super_email and str(user.get("email", "")).strip().lower() == str(super_email).strip().lower():
+            user["role_name"] = "superadmin"
+            user["role_permissions"] = DEFAULT_ROLES["superadmin"]["permissions"]
 
     async def get_by_email(self, email: str) -> Optional[Dict[str, Any]]:
         """Get user by email with role information - robust version"""
@@ -90,6 +124,7 @@ class AuthRepository(BaseRepository):
             user["role_name"] = role_name
             user["role_permissions"] = role_permissions
             user["sector_name"] = sector_name
+            self._apply_super_admin_alias(user)
 
             return user
 
@@ -136,6 +171,7 @@ class AuthRepository(BaseRepository):
             user["role_name"] = role_name
             user["role_permissions"] = role_permissions
             user["sector_name"] = sector_name
+            self._apply_super_admin_alias(user)
 
             return user
 
@@ -173,6 +209,7 @@ class AuthRepository(BaseRepository):
             user = result.data[0]
             user["role_name"] = user.get("rol", "vecino")
             user["role_permissions"] = DEFAULT_ROLES.get(user["role_name"], DEFAULT_ROLES["vecino"])["permissions"]
+            self._apply_super_admin_alias(user)
             return user
 
         except Exception as e:
@@ -183,6 +220,33 @@ class AuthRepository(BaseRepository):
         """Update user"""
         result = self._table().update(data).eq("id", str(id)).execute()
         return result.data[0] if result.data else None
+
+    async def create_password_reset_token(self, user_id: str, token_hash: str, expires_at: str) -> Dict[str, Any]:
+        try:
+            result = table("password_reset_tokens").insert({
+                "usuario_id": user_id,
+                "token_hash": token_hash,
+                "expires_at": expires_at
+            }).execute()
+        except Exception:
+            self.ensure_password_reset_table()
+            result = table("password_reset_tokens").insert({
+                "usuario_id": user_id,
+                "token_hash": token_hash,
+                "expires_at": expires_at
+            }).execute()
+        return result.data[0]
+
+    async def get_password_reset_token(self, token_hash: str) -> Optional[Dict[str, Any]]:
+        try:
+            result = table("password_reset_tokens").select("*").eq("token_hash", token_hash).single().execute()
+        except Exception:
+            self.ensure_password_reset_table()
+            result = table("password_reset_tokens").select("*").eq("token_hash", token_hash).single().execute()
+        return result.data
+
+    async def mark_password_reset_used(self, token_id: str, used_at: str) -> None:
+        table("password_reset_tokens").update({"used_at": used_at}).eq("id", token_id).execute()
     
     async def get_all(self, filters: Dict[str, Any] = None) -> list:
         """Not implemented for auth"""

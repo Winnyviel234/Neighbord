@@ -34,6 +34,7 @@ export default function NotificationPreferencesPage() {
     comunicados: true,
     directiva: true,
     chat: true,
+    novedades: true,
     email_votaciones: false,
     email_reuniones: false,
     email_pagos: false,
@@ -118,7 +119,8 @@ export default function NotificationPreferencesPage() {
               { key: 'solicitudes', label: 'Solicitudes' },
               { key: 'comunicados', label: 'Comunicados' },
               { key: 'directiva', label: 'Directiva' },
-              { key: 'chat', label: 'Chat' }
+              { key: 'chat', label: 'Chat' },
+              { key: 'novedades', label: 'Novedades (todo lo nuevo en la app)' }
             ].map(item => (
               <label key={item.key} className="flex items-center gap-3 cursor-pointer p-2 hover:bg-slate-50 rounded">
                 <input

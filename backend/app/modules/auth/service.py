@@ -1,7 +1,13 @@
+from datetime import datetime, timedelta, timezone
+import hashlib
+import secrets
+from urllib.parse import quote
+
 from fastapi import HTTPException
+from app.core.config import settings
 from app.core.security import hash_password, verify_password, create_access_token
 from app.modules.auth.repository import AuthRepository
-from app.modules.auth.model import RegisterRequest, LoginRequest, PasswordChangeRequest, ProfileUpdateRequest
+from app.modules.auth.model import RegisterRequest, LoginRequest, PasswordChangeRequest, PasswordResetConfirmRequest, PasswordResetRequest, ProfileUpdateRequest
 from app.services.email_service import EmailService
 from typing import Dict, Any
 
@@ -56,13 +62,14 @@ class AuthService:
         if not user or not verify_password(data.password, user["password_hash"]):
             raise HTTPException(401, "Credenciales inválidas")
         
-        if user.get("rol") != "admin" and user.get("estado") not in ["aprobado", "activo"]:
+        role_name = user.get("role_name", user.get("rol", "vecino"))
+        if role_name not in ["admin", "superadmin"] and user.get("estado") not in ["aprobado", "activo"]:
             raise HTTPException(403, "Tu cuenta aún no está aprobada")
         
         # Create token with role info
         token_data = {
             "sub": str(user["id"]),
-            "role": user.get("rol", "vecino"),
+            "role": role_name,
             "sector_id": str(user.get("sector_id")) if user.get("sector_id") else None
         }
         token = create_access_token(token_data)
@@ -108,3 +115,40 @@ class AuthService:
         await self.repo.update(user_id, {"password_hash": new_hash})
         
         return {"message": "Contraseña actualizada"}
+
+    def _hash_reset_token(self, token: str) -> str:
+        return hashlib.sha256(token.encode("utf-8")).hexdigest()
+
+    async def request_password_reset(self, data: PasswordResetRequest) -> Dict[str, Any]:
+        """Send a one-time password reset link without revealing if the email exists."""
+        generic = {"message": "Si el correo existe, enviaremos un enlace para recuperar la contrasena."}
+        user = await self.repo.get_by_email(data.email)
+        if not user or not user.get("activo", True):
+            return generic
+
+        token = secrets.token_urlsafe(48)
+        token_hash = self._hash_reset_token(token)
+        expires_at = (datetime.now(timezone.utc) + timedelta(minutes=30)).isoformat()
+        await self.repo.create_password_reset_token(str(user["id"]), token_hash, expires_at)
+
+        reset_url = f"{settings.frontend_url.rstrip('/')}/restablecer-contrasena?token={quote(token)}"
+        email_result = self.email_service.password_reset(user["email"], user.get("nombre") or "vecino", reset_url)
+        if not email_result.get("sent"):
+            return {**generic, "email_configured": False, "detail": email_result.get("detail")}
+        return generic
+
+    async def reset_password(self, data: PasswordResetConfirmRequest) -> Dict[str, Any]:
+        token_hash = self._hash_reset_token(data.token)
+        token_row = await self.repo.get_password_reset_token(token_hash)
+        if not token_row or token_row.get("used_at"):
+            raise HTTPException(400, "El enlace no es valido o ya fue usado")
+
+        expires_at = datetime.fromisoformat(str(token_row["expires_at"]).replace("Z", "+00:00"))
+        if expires_at.tzinfo is None:
+            expires_at = expires_at.replace(tzinfo=timezone.utc)
+        if datetime.now(timezone.utc) > expires_at:
+            raise HTTPException(400, "El enlace expiro. Solicita uno nuevo")
+
+        await self.repo.update(token_row["usuario_id"], {"password_hash": hash_password(data.password_nueva)})
+        await self.repo.mark_password_reset_used(token_row["id"], datetime.now(timezone.utc).isoformat())
+        return {"message": "Contrasena actualizada. Ya puedes iniciar sesion."}

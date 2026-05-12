@@ -36,6 +36,8 @@ export default function DashboardPage() {
     return acc;
   }, { totalVotos: 0, totalOptions: 0 }) || { totalVotos: 0, totalOptions: 0 };
 
+  const upcomingEvents = (data.eventos_proximos || []).filter((event) => event.tipo !== 'general');
+
   return (
     <section>
       <div className="flex flex-wrap items-end justify-between gap-3">
@@ -74,9 +76,9 @@ export default function DashboardPage() {
         </Panel>
 
         <Panel icon={CalendarDays} title="Eventos proximos">
-          {data.eventos_proximos?.length ? data.eventos_proximos.map((item) => (
+          {upcomingEvents.length ? upcomingEvents.map((item) => (
             <Row key={item.id} title={item.titulo} text={`${item.lugar} - ${dateTime(item.fecha)}`} />
-          )) : <EmptyState title="Sin eventos" />}
+          )) : <EmptyState title="Sin reuniones proximas" />}
         </Panel>
 
 <Panel icon={Vote} title="Votaciones activas">
