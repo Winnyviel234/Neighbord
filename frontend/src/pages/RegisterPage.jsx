@@ -73,10 +73,10 @@ export default function RegisterPage() {
       return;
     }
 
-    if (payload.password.length < 6) {
-      setError('La contrasena debe tener al menos 6 caracteres.');
-      return;
-    }
+     if (payload.password.length < 6) {
+       setError('La contraseña debe tener al menos 6 caracteres.');
+       return;
+     }
 
     const phoneValidationError = getPhoneError(payload.telefono);
     if (phoneValidationError) {

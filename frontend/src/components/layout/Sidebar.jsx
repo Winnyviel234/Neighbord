@@ -5,7 +5,7 @@ import { useAuth } from '../../context/AuthContext';
 import { roleLabel } from '../../lib/utils';
 
 const items = [
-  { to: '/app', label: 'Dashboard', icon: BarChart3, roles: ['admin', 'directiva', 'tesorero', 'vocero', 'secretaria', 'vecino'] },
+  { to: '/app', label: 'Dashboard', icon: BarChart3, roles: ['admin', 'directiva', 'tesorero', 'vocero', 'secretaria', 'vecino'], exact: true },
   { to: '/app/perfil', label: 'Perfil', icon: UserRound, roles: ['admin', 'directiva', 'tesorero', 'vocero', 'secretaria', 'vecino'] },
   { to: '/app/vecinos', label: 'Vecinos', icon: Users, roles: ['admin', 'directiva', 'tesorero'] },
   { to: '/app/reuniones', label: 'Reuniones', icon: Bell, roles: ['admin', 'directiva', 'tesorero', 'vocero', 'secretaria', 'vecino'] },
@@ -44,9 +44,9 @@ export default function Sidebar() {
   };
 
   return (
-    <aside className={`sticky top-0 flex h-screen flex-col border-r border-white/70 bg-white/80 shadow-[16px_0_50px_rgba(15,35,64,0.08)] backdrop-blur-xl transition-all duration-300 ${collapsed ? 'w-20' : 'w-72'}`}>
-      <Link to="/" className={`flex items-center gap-3 border-b border-slate-200/70 p-5 ${collapsed ? 'justify-center' : ''}`}>
-        <img src="/neighbor-logo.png" alt="Neighbord" className={`rounded-2xl object-contain shadow-sm ${collapsed ? 'h-12 w-12' : 'h-16 w-16'}`} />
+     <aside className={`sticky top-0 flex h-screen flex-col border-r border-white/70 bg-white/80 shadow-[16px_0_50px_rgba(15,35,64,0.08)] backdrop-blur-xl transition-all duration-300 ${collapsed ? 'w-28' : 'w-72'}`}>
+       <Link to="/" className={`flex items-center gap-3 border-b border-slate-200/70 p-5 ${collapsed ? 'justify-center' : ''}`}>
+         <img src="/neighbor-logo.png" alt="Neighbord" className={`rounded-2xl object-contain shadow-sm ${collapsed ? 'h-14 w-14' : 'h-16 w-16'}`} />
         {!collapsed && (
           <div>
             <p className="text-xl font-black text-neighbor-navy">Neighbord</p>
@@ -55,25 +55,26 @@ export default function Sidebar() {
         )}
       </Link>
 
-      <nav className="flex-1 space-y-1 overflow-y-auto p-4">
-        {items.filter((item) => item.roles.includes(user?.rol)).map(({ to, label, icon: Icon }) => (
-          <NavLink
-            key={to}
-            to={to}
-            title={label}
-            className={({ isActive }) =>
-              `flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-bold transition ${
-                isActive
-                  ? 'bg-neighbor-navy text-white shadow-lg shadow-neighbor-navy/15'
-                  : 'text-slate-600 hover:bg-white hover:text-neighbor-navy hover:shadow-sm'
-              } ${collapsed ? 'justify-center' : ''}`
-            }
-          >
-            <Icon className={`${collapsed ? 'h-6 w-6' : 'h-5 w-5'}`} />
-            {!collapsed && <span>{label}</span>}
-          </NavLink>
-        ))}
-      </nav>
+       <nav className="flex-1 space-y-1 overflow-y-auto p-4">
+         {items.filter((item) => item.roles.includes(user?.rol)).map(({ to, label, icon: Icon, exact }) => (
+           <NavLink
+             key={to}
+             to={to}
+             end={exact}
+             title={label}
+             className={({ isActive }) =>
+               `flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-bold transition ${
+                 isActive
+                   ? 'bg-neighbor-navy text-white shadow-lg shadow-neighbor-navy/15'
+                   : 'text-slate-600 hover:bg-white hover:text-neighbor-navy hover:shadow-sm'
+               } ${collapsed ? 'justify-center' : ''}`
+             }
+           >
+              <Icon className={`${collapsed ? 'h-8 w-8' : 'h-5 w-5'}`} />
+             {!collapsed && <span>{label}</span>}
+           </NavLink>
+         ))}
+       </nav>
 
       <div className="border-t border-slate-200/70 p-4">
         <button
@@ -81,7 +82,7 @@ export default function Sidebar() {
           onClick={toggleCollapsed}
           className="mb-4 inline-flex w-full items-center justify-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-600 hover:bg-white transition"
         >
-          <Menu className={`${collapsed ? 'h-6 w-6' : 'h-5 w-5'}`} />
+           <Menu className={`${collapsed ? 'h-8 w-8' : 'h-5 w-5'}`} />
           {!collapsed && <span>{collapsed ? 'Abrir barra' : 'Colapsar barra'}</span>}
         </button>
         {!collapsed ? (
@@ -94,7 +95,7 @@ export default function Sidebar() {
           onClick={logout}
           className={`mt-4 flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm font-semibold text-slate-600 transition hover:bg-white hover:text-neighbor-navy ${collapsed ? 'justify-center' : ''}`}
         >
-          <LogOut className={`${collapsed ? 'h-6 w-6' : 'h-5 w-5'}`} />
+           <LogOut className={`${collapsed ? 'h-8 w-8' : 'h-5 w-5'}`} />
           {!collapsed && 'Salir'}
         </button>
       </div>

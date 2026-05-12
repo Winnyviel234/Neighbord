@@ -36,12 +36,14 @@ def update_comunicado(comunicado_id: str, payload: ComunicadoIn, user: dict = De
 def delete_comunicado(comunicado_id: str, user: dict = Depends(require_roles("admin"))):
     return table("comunicados").delete().eq("id", comunicado_id).execute().data[0]
 
+
 @router.get("/{comunicado_id}/comments")
 def list_comunicado_comments(comunicado_id: str):
     """
     Lista los comentarios de un comunicado específico.
     """
     return table("comunicado_comments").select("*, usuarios(nombre)").eq("comunicado_id", comunicado_id).order("created_at", desc=False).execute().data
+
 
 @router.post("/{comunicado_id}/comments")
 def create_comunicado_comment(
@@ -58,3 +60,19 @@ def create_comunicado_comment(
         "contenido": contenido
     }
     return table("comunicado_comments").insert(data).execute().data[0]
+
+
+@router.delete("/comments/{comment_id}")
+def delete_comunicado_comment(comment_id: str, user: dict = Depends(get_current_user)):
+    """
+    Elimina un comentario (solo el autor o un admin).
+    """
+    existing = table("comunicado_comments").select("*").eq("id", comment_id).execute().data
+    if not existing:
+        return {"detail": "Comentario no encontrado"}
+    comment = existing[0]
+    is_owner = comment["usuario_id"] == user["id"]
+    is_admin = user.get("rol") in ["admin", "directiva"]
+    if not is_owner and not is_admin:
+        return {"detail": "No autorizado"}
+    return table("comunicado_comments").delete().eq("id", comment_id).execute().data[0]

@@ -122,13 +122,13 @@ class EmailService:
     def password_reset(self, email: str, name: str, reset_url: str):
         return self.send(
             [email],
-            "Recuperar contrasena",
+            "Recuperar contraseña",
             f"""
             <h2>Hola {name}</h2>
-            <p>Recibimos una solicitud para cambiar la contrasena de tu cuenta.</p>
+            <p>Recibimos una solicitud para cambiar la contraseña de tu cuenta.</p>
             <p>Este enlace vence en 30 minutos y solo se puede usar una vez.</p>
-            <p><a href="{reset_url}" style="display:inline-block;background:#0b5cab;color:#ffffff;padding:12px 16px;border-radius:8px;text-decoration:none;font-weight:bold">Cambiar contrasena</a></p>
+            <p><a href="{reset_url}" style="display:inline-block;background:#0b5cab;color:#ffffff;padding:12px 16px;border-radius:8px;text-decoration:none;font-weight:bold">Cambiar contraseña</a></p>
             <p>Si no solicitaste este cambio, puedes ignorar este correo.</p>
             """,
-            f"Abre este enlace para cambiar tu contrasena: {reset_url}"
+            f"Abre este enlace para cambiar tu contraseña: {reset_url}"
         )

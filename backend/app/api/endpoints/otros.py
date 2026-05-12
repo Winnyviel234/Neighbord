@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, Form
 
 from app.core.security import get_current_user, get_optional_current_user, require_roles
 from app.core.supabase import table
@@ -112,7 +112,45 @@ def public_landing(
 
 @router.get("/proyectos")
 def proyectos(user: dict = Depends(get_current_user)):
-    return table("proyectos").select("*").order("created_at", desc=True).execute().data
+    try:
+        return table("proyectos").select("*").order("created_at", desc=True).execute().data
+    except Exception as e:
+        return []
+
+
+@router.post("/proyectos")
+def crear_proyecto(
+    title: str = Form(...),
+    description: str = Form(...),
+    presupuesto_estimado: float = Form(...),
+    fecha_inicio: str = Form(...),
+    fecha_fin_estimada: str = Form(...),
+    status: str = Form("planeado"),
+    prioridad: str = Form("media"),
+    sector_id: str = Form(None),
+    user: dict = Depends(require_roles("admin", "directiva"))
+):
+    try:
+        sector_to_use = sector_id or user.get("sector_id") or "00000000-0000-0000-0000-000000000000"
+        
+        data = {
+            "title": title,
+            "description": description,
+            "status": status,
+            "presupuesto_estimado": presupuesto_estimado,
+            "fecha_inicio": fecha_inicio,
+            "fecha_fin_estimada": fecha_fin_estimada,
+            "prioridad": prioridad,
+            "progreso": 0,
+            "created_by": str(user["id"]),
+            "responsable_id": str(user["id"]),
+            "sector_id": str(sector_to_use)
+        }
+        
+        result = table("proyectos").insert(data).execute()
+        return result.data[0] if result.data else data
+    except Exception as e:
+        return {"detail": f"Error al crear proyecto: {str(e)}", "error": True}
 
 
 @router.get("/auditoria")

@@ -15,7 +15,7 @@ import SolicitudesPage from './pages/SolicitudesPage.jsx';
 import ComunicadosPage from './pages/ComunicadosPage.jsx';
 import NoticiasPage from './pages/NoticiasPage.jsx';
 import PagosPage from './pages/PagosPage.jsx';
-import ProjectContributionPage from './pages/ProjectContributionPage.jsx';
+import ProyectosPage from './pages/ProyectosPage.jsx';
 import PerfilPage from './pages/PerfilPage.jsx';
 import FinanzasPage from './pages/FinanzasPage.jsx';
 import ReportesPage from './pages/ReportesPage.jsx';
@@ -64,7 +64,7 @@ export default function App() {
         <Route path="noticias" element={<NoticiasPage />} />
         <Route path="pagos" element={<PagosPage />} />
         <Route path="finanzas" element={<Protected roles={['admin', 'directiva', 'tesorero']}><FinanzasPage /></Protected>} />
-        <Route path="proyectos" element={<ProjectContributionPage />} />
+        <Route path="proyectos" element={<ProyectosPage />} />
         <Route path="directiva" element={<Protected roles={['admin', 'directiva', 'tesorero', 'vocero', 'secretaria']}><DirectivaPage /></Protected>} />
         <Route path="reportes" element={<Protected roles={['admin', 'directiva', 'tesorero', 'vocero', 'secretaria']}><ReportesPage /></Protected>} />
         <Route path="admin" element={<Protected roles={['admin']}><AdminPublicacionesPage /></Protected>} />

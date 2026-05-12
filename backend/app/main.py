@@ -15,6 +15,7 @@ from app.modules.meetings.routes import router as meetings_router
 from app.modules.voting.routes import router as voting_router
 from app.modules.notifications.routes import router as notifications_router
 from app.modules.statistics.routes import router as statistics_router
+from app.modules.projects.routes import router as projects_router
 from app.core.config import settings
 
 app = FastAPI(title=settings.app_name)
@@ -49,6 +50,7 @@ app.include_router(meetings_router, prefix="/api/v2")
 app.include_router(voting_router, prefix="/api/v2")
 app.include_router(notifications_router, prefix="/api/v2")
 app.include_router(statistics_router, prefix="/api/v2")
+app.include_router(projects_router, prefix="/api/v2")
 
 # Keep old routers for backward compatibility
 app.include_router(old_auth.router, prefix="/api")

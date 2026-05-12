@@ -25,10 +25,8 @@ def list_noticias(
     limit: int = Query(20, ge=1, le=100, description="Número máximo de registros")
 ):
     now = time()
-    # Usar caché solo si es el mismo límite/skip que antes
     if _CACHE["data"] is not None and now - _CACHE["at"] < CACHE_SECONDS:
         data = _CACHE["data"]
-        # Aplicar paginación al cache
         return data[skip:skip + limit]
     
     data = table("noticias").select("*").eq("publicado", True).order("created_at", desc=True).limit(100).execute().data
@@ -104,12 +102,14 @@ def delete_noticia(noticia_id: str, user: dict = Depends(require_roles("admin"))
     _CACHE.update({"at": 0.0, "data": None})
     return deleted
 
+
 @router.get("/{noticia_id}/comments")
 def list_noticia_comments(noticia_id: str):
     """
     Lista los comentarios de una noticia específica.
     """
     return table("noticia_comments").select("*, usuarios(nombre)").eq("noticia_id", noticia_id).order("created_at", desc=False).execute().data
+
 
 @router.post("/{noticia_id}/comments")
 def create_noticia_comment(
@@ -126,3 +126,19 @@ def create_noticia_comment(
         "contenido": contenido
     }
     return table("noticia_comments").insert(data).execute().data[0]
+
+
+@router.delete("/comments/{comment_id}")
+def delete_noticia_comment(comment_id: str, user: dict = Depends(get_current_user)):
+    """
+    Elimina un comentario (solo el autor o un admin).
+    """
+    existing = table("noticia_comments").select("*").eq("id", comment_id).execute().data
+    if not existing:
+        return {"detail": "Comentario no encontrado"}
+    comment = existing[0]
+    is_owner = comment["usuario_id"] == user["id"]
+    is_admin = user.get("rol") in ["admin", "directiva"]
+    if not is_owner and not is_admin:
+        return {"detail": "No autorizado"}
+    return table("noticia_comments").delete().eq("id", comment_id).execute().data[0]

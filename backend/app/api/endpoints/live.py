@@ -1,10 +1,14 @@
 from datetime import datetime, timezone
 from uuid import uuid4
 
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect
+from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Query, Depends, HTTPException
+from jose import jwt
+
+from app.core.config import settings
+from app.core.supabase import table
+from app.modules.auth.repository import DEFAULT_ROLES
 
 router = APIRouter(tags=["live"])
-
 
 
 
@@ -21,13 +25,30 @@ DIRECTIVA_MESSAGES = [
     {"id": "directiva-1", "asunto": "Consulta por luminaria", "mensaje": "Solicito revisar el poste frente a la sede vecinal.", "estado": "recibido", "fecha": "2026-04-30T10:00:00+00:00"},
 ]
 
+DIRECTIVA_CHAT_MESSAGES = []
+
 NOTIFICATIONS = [
     {"id": "noti-1", "tipo": "Sistema", "titulo": "Canal en vivo activo", "mensaje": "Chat y mapa sincronizados en tiempo real.", "fecha": "2026-04-30T12:00:00+00:00", "estado": "nuevo"},
 ]
 
+DIRECTIVA_ROLES = {"admin", "superadmin", "directiva", "tesorero", "vocero", "secretaria"}
+
 
 def now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
+
+
+def decode_token(token: str) -> dict | None:
+    try:
+        return jwt.decode(token, settings.jwt_secret_key, algorithms=[settings.jwt_algorithm])
+    except Exception:
+        return None
+
+
+def is_directiva_role(role: str | None) -> bool:
+    if not role:
+        return False
+    return role in DIRECTIVA_ROLES
 
 
 class LiveManager:
@@ -70,7 +91,47 @@ class LiveManager:
             self.disconnect(websocket)
 
 
+class DirectivaChatManager:
+    def __init__(self):
+        self.connections: set[WebSocket] = set()
+        self.users: dict[WebSocket, dict] = {}
+
+    async def connect(self, websocket: WebSocket, user: dict):
+        await websocket.accept()
+        self.connections.add(websocket)
+        self.users[websocket] = user
+        await websocket.send_json({
+            "type": "snapshot",
+            "messages": DIRECTIVA_CHAT_MESSAGES[-100:],
+            "presence": self.presence(),
+        })
+        await self.broadcast({"type": "presence:update", "presence": self.presence()})
+
+    def disconnect(self, websocket: WebSocket):
+        self.connections.discard(websocket)
+        self.users.pop(websocket, None)
+
+    def presence(self) -> list[dict]:
+        seen = {}
+        for user in self.users.values():
+            user_id = user.get("id") or user.get("user_id")
+            if user_id:
+                seen[user_id] = {"id": user_id, "nombre": user.get("nombre") or "Directivo"}
+        return list(seen.values())
+
+    async def broadcast(self, payload: dict):
+        dead: list[WebSocket] = []
+        for websocket in self.connections:
+            try:
+                await websocket.send_json(payload)
+            except Exception:
+                dead.append(websocket)
+        for websocket in dead:
+            self.disconnect(websocket)
+
+
 manager = LiveManager()
+directiva_manager = DirectivaChatManager()
 
 
 @router.get("/live/status")
@@ -173,5 +234,125 @@ async def live_socket(websocket: WebSocket):
         manager.disconnect(websocket)
         try:
             await manager.broadcast({"type": "presence:update", "presence": manager.presence()})
+        except Exception:
+            pass
+
+
+def resolve_user_role(user: dict) -> tuple[str, list]:
+    role_name = user.get("rol", "vecino")
+    role_permissions = DEFAULT_ROLES.get(role_name, DEFAULT_ROLES["vecino"])["permissions"]
+    if user.get("role_id"):
+        try:
+            role_result = table("roles").select("name, permissions").eq("id", user["role_id"]).single().execute()
+            if role_result.data:
+                role_name = role_result.data.get("name", role_name)
+                role_permissions = role_result.data.get("permissions", role_permissions)
+        except Exception:
+            pass
+
+    super_email = settings.super_admin_email or settings.admin_email
+    if super_email and str(user.get("email", "")).strip().lower() == str(super_email).strip().lower():
+        role_name = "superadmin"
+        role_permissions = DEFAULT_ROLES["superadmin"]["permissions"]
+
+    return role_name, role_permissions
+
+
+def get_user_from_token(token: str) -> dict | None:
+    payload = decode_token(token)
+    if not payload:
+        return None
+    user_id = payload.get("sub")
+    if not user_id:
+        return None
+    try:
+        result = table("usuarios").select("*").eq("id", user_id).single().execute()
+        if not result.data:
+            return None
+        user = result.data
+        role_name, role_permissions = resolve_user_role(user)
+        user["role_name"] = role_name
+        user["role_permissions"] = role_permissions
+        return user
+    except Exception:
+        return None
+
+
+@router.get("/directiva/check")
+def check_directiva_access(user: dict = Depends(get_user_from_token)):
+    """Verifica si el usuario tiene acceso al chat de directiva."""
+    if not user:
+        return {"access": False, "message": "No autenticado"}
+    if not is_directiva_role(user.get("role_name")):
+        return {"access": False, "message": "No eres miembro de la directiva"}
+    return {"access": True, "user": {"id": user.get("id"), "nombre": user.get("nombre"), "rol": user.get("role_name")}}
+
+
+@router.get("/directiva/chat/history")
+def get_directiva_chat_history(user: dict = Depends(get_user_from_token)):
+    """Obtiene el historial del chat de directiva."""
+    if not user or not is_directiva_role(user.get("role_name")):
+        raise HTTPException(status_code=403, detail="Acceso denegado")
+    return {"messages": DIRECTIVA_CHAT_MESSAGES[-100:]}
+
+
+@router.websocket("/ws/directiva")
+async def directiva_chat_socket(websocket: WebSocket, token: str = Query(...)):
+    """WebSocket para el chat privado de la directiva."""
+    user = get_user_from_token(token)
+    if not user or not is_directiva_role(user.get("role_name")):
+        await websocket.close(code=4001)
+        return
+
+    user_info = {
+        "id": user.get("id"),
+        "nombre": user.get("nombre") or "Directivo",
+        "rol": user.get("role_name")
+    }
+
+    await directiva_manager.connect(websocket, user_info)
+    try:
+        while True:
+            payload = await websocket.receive_json()
+            action = payload.get("type")
+
+            if action == "chat:send":
+                message = {
+                    "id": f"dc-{uuid4()}",
+                    "usuario_id": user.get("id"),
+                    "autor": user.get("nombre") or "Directivo",
+                    "mensaje": (payload.get("mensaje") or "").strip(),
+                    "fecha": now_iso(),
+                }
+                if not message["mensaje"]:
+                    continue
+                DIRECTIVA_CHAT_MESSAGES.append(message)
+                del DIRECTIVA_CHAT_MESSAGES[:-200]
+                await directiva_manager.broadcast({"type": "chat:new", "message": message})
+
+            elif action == "presence:join":
+                directiva_manager.users[websocket] = {
+                    "id": user.get("id"),
+                    "nombre": (payload.get("nombre") or user.get("nombre") or "Directivo").strip()[:80],
+                }
+                await directiva_manager.broadcast({"type": "presence:update", "presence": directiva_manager.presence()})
+
+            elif action == "chat:typing":
+                await directiva_manager.broadcast({
+                    "type": "chat:typing",
+                    "autor": (payload.get("autor") or user.get("nombre") or "Directivo").strip()[:80],
+                    "isTyping": bool(payload.get("isTyping")),
+                })
+
+    except WebSocketDisconnect:
+        directiva_manager.disconnect(websocket)
+        try:
+            await directiva_manager.broadcast({"type": "presence:update", "presence": directiva_manager.presence()})
+        except Exception:
+            pass
+    except Exception:
+        directiva_manager.disconnect(websocket)
+        try:
+            await directiva_manager.broadcast({"type": "presence:update", "presence": directiva_manager.presence()})
         except Exception:
             pass

@@ -25,18 +25,38 @@ export function liveSocketUrl() {
   
   let wsUrl;
   if (/^https?:\/\//i.test(baseURL)) {
-    // URL absoluta (ej: http://localhost:8000)
     const url = new URL(baseURL);
     url.protocol = url.protocol === 'https:' ? 'wss:' : 'ws:';
     url.pathname = `${url.pathname.replace(/\/$/, '')}/ws/live`;
     wsUrl = url.toString();
   } else {
-    // URL relativa (ej: /api)
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const host = /^[^:]+:\/\//.test(window.location.origin)
       ? window.location.host
       : 'localhost:5174';
     wsUrl = `${protocol}//${host}${baseURL.replace(/\/$/, '')}/ws/live`;
+  }
+  
+  return wsUrl;
+}
+
+export function directivaSocketUrl() {
+  const baseURL = import.meta.env.VITE_API_URL || '/api';
+  const token = localStorage.getItem('neighbor_token');
+  
+  let wsUrl;
+  if (/^https?:\/\//i.test(baseURL)) {
+    const url = new URL(baseURL);
+    url.protocol = url.protocol === 'https:' ? 'wss:' : 'ws:';
+    url.pathname = `${url.pathname.replace(/\/$/, '')}/ws/directiva`;
+    if (token) url.searchParams.set('token', token);
+    wsUrl = url.toString();
+  } else {
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const host = /^[^:]+:\/\//.test(window.location.origin)
+      ? window.location.host
+      : 'localhost:5174';
+    wsUrl = `${protocol}//${host}${baseURL.replace(/\/$/, '')}/ws/directiva${token ? `?token=${encodeURIComponent(token)}` : ''}`;
   }
   
   return wsUrl;
@@ -228,11 +248,25 @@ export const dataService = {
     const formData = buildFormData(data, 'imagen');
     return api.post('/noticias/form', formData, { headers: { 'Content-Type': 'multipart/form-data' } }).then((r) => r.data);
   },
-  actualizarNoticia: (id, data) => {
-    const formData = buildFormData(data, 'imagen');
-    return api.patch(`/noticias/${id}/form`, formData, { headers: { 'Content-Type': 'multipart/form-data' } }).then((r) => r.data);
-  },
-  eliminarNoticia: (id) => deleteWithDemo(id, () => api.delete(`/noticias/${id}`)),
+   actualizarNoticia: (id, data) => {
+     const formData = buildFormData(data, 'imagen');
+     return api.patch(`/noticias/${id}/form`, formData, { headers: { 'Content-Type': 'multipart/form-data' } }).then((r) => r.data);
+   },
+   eliminarNoticia: (id) => deleteWithDemo(id, () => api.delete(`/noticias/${id}`)),
+   getNoticiaComments: (id) => api.get(`/noticias/${id}/comments`).then((r) => r.data || []),
+   createNoticiaComment: (id, contenido) => {
+     const formData = new FormData();
+     formData.append('contenido', contenido);
+     return api.post(`/noticias/${id}/comments`, formData, { headers: { 'Content-Type': 'multipart/form-data' } }).then((r) => r.data);
+   },
+   deleteNoticiaComment: (id) => api.delete(`/noticias/comments/${id}`).then((r) => r.data),
+   getComunicadoComments: (id) => api.get(`/comunicados/${id}/comments`).then((r) => r.data || []),
+   createComunicadoComment: (id, contenido) => {
+     const formData = new FormData();
+     formData.append('contenido', contenido);
+     return api.post(`/comunicados/${id}/comments`, formData, { headers: { 'Content-Type': 'multipart/form-data' } }).then((r) => r.data);
+   },
+   deleteComunicadoComment: (id) => api.delete(`/comunicados/comments/${id}`).then((r) => r.data),
   directiva: () => getRealList(api.get('/directiva')),
   crearDirectivo: (data) => {
     const formData = buildFormData(data, 'imagen');
@@ -268,8 +302,38 @@ export const dataService = {
   getUnreadNotificationCount: () => api.get('/v2/notifications/unread/count').then((r) => r.data),
   markNotificationAsRead: (id) => api.patch(`/v2/notifications/${id}/read`).then((r) => r.data),
   markAllNotificationsAsRead: () => api.post('/v2/notifications/mark-multiple-read', { ids: [] }).then((r) => r.data),
-  getNotificationPreferences: () => api.get('/v2/notifications/preferences').then((r) => r.data),
-  updateNotificationPreferences: (preferences) => api.patch('/v2/notifications/preferences', preferences).then((r) => r.data)
+   getNotificationPreferences: () => api.get('/v2/notifications/preferences').then((r) => r.data),
+   updateNotificationPreferences: (preferences) => api.patch('/v2/notifications/preferences', preferences).then((r) => r.data),
+   checkDirectivaAccess: () => api.get('/live/directiva/check').then((r) => r.data).catch(() => ({ access: false })),
+   getDirectivaChatHistory: () => api.get('/live/directiva/chat/history').then((r) => r.data).catch(() => ({ messages: [] })),
+   getProyectos: () => api.get('/proyectos').then((r) => r.data).catch(() => []),
+   getProyecto: (id) => api.get(`/proyectos/${id}`).then((r) => r.data),
+   crearProyecto: (data) => {
+     const formData = new FormData();
+     formData.append('title', data.title);
+     formData.append('description', data.description);
+     formData.append('presupuesto_estimado', String(data.presupuesto_estimado));
+     formData.append('fecha_inicio', data.fecha_inicio);
+     formData.append('fecha_fin_estimada', data.fecha_fin_estimada);
+     formData.append('status', data.status || 'planeado');
+     formData.append('prioridad', data.prioridad || 'media');
+     return api.post('/proyectos', formData, {
+       headers: { 'Content-Type': 'multipart/form-data' }
+     }).then((r) => r.data);
+   },
+   actualizarProyecto: (id, data) => api.patch(`/v2/projects/${id}`, data).then((r) => r.data),
+   eliminarProyecto: (id) => api.delete(`/v2/projects/${id}`),
+   getContribucionesProyecto: (id) => api.get(`/v2/projects/${id}/contributions`).then((r) => r.data),
+   aportarProyecto: (projectId, monto, concepto) => {
+     const formData = new FormData();
+     formData.append('monto', String(monto));
+     if (concepto) formData.append('concepto', concepto);
+     return api.post(`/v2/projects/${projectId}/contribute`, formData, {
+       headers: { 'Content-Type': 'multipart/form-data' }
+     }).then((r) => r.data);
+   },
+   checkContribucionStatus: (projectId, contributionId) =>
+     api.get(`/v2/projects/${projectId}/contributions/${contributionId}/status`).then((r) => r.data),
 };
 
 export default api;

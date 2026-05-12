@@ -5,6 +5,7 @@ from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from app.core.security import get_current_user, require_roles
 from app.core.supabase import table, upload_to_storage
 from app.schemas.schemas import CuotaIn, PagoCuotaIn, PagoIn
+from app.services.notification_service import NotificationService
 
 router = APIRouter(prefix="/cuotas", tags=["cuotas"])
 
@@ -87,19 +88,37 @@ def list_mis_pagos(user: dict = Depends(get_current_user)):
 
 
 @router.post("/{cuota_id}/pagos")
-def pagar_cuota(cuota_id: str, payload: PagoIn, user: dict = Depends(require_roles("admin", "tesorero"))):
+async def pagar_cuota(cuota_id: str, payload: PagoIn, user: dict = Depends(require_roles("admin", "tesorero"))):
     data = _payment_data(cuota_id, payload.vecino_id, payload.monto, payload.fecha_pago, payload.metodo, payload.referencia, user["id"])
-    return table("pagos_cuotas").upsert(data, on_conflict="cuota_id,vecino_id").execute().data[0]
+    pago = table("pagos_cuotas").upsert(data, on_conflict="cuota_id,vecino_id").execute().data[0]
+    cuota = table("cuotas").select("titulo,monto").eq("id", cuota_id).single().execute().data
+    notif_service = NotificationService()
+    await notif_service.notify_pago(str(payload.vecino_id), {
+        **pago,
+        "concepto": cuota.get("titulo", "Pago de cuota") if cuota else "Pago de cuota",
+        "monto": pago.get("monto", 0),
+        "estado": pago.get("estado", "pendiente")
+    })
+    return pago
 
 
 @router.post("/{cuota_id}/pagar")
-def pagar_mi_cuota(cuota_id: str, payload: PagoCuotaIn, user: dict = Depends(get_current_user)):
+async def pagar_mi_cuota(cuota_id: str, payload: PagoCuotaIn, user: dict = Depends(get_current_user)):
     data = _payment_data(cuota_id, user["id"], payload.monto, payload.fecha_pago, payload.metodo, payload.referencia, user["id"])
-    return table("pagos_cuotas").upsert(data, on_conflict="cuota_id,vecino_id").execute().data[0]
+    pago = table("pagos_cuotas").upsert(data, on_conflict="cuota_id,vecino_id").execute().data[0]
+    cuota = table("cuotas").select("titulo,monto").eq("id", cuota_id).single().execute().data
+    notif_service = NotificationService()
+    await notif_service.notify_pago(str(user["id"]), {
+        **pago,
+        "concepto": cuota.get("titulo", "Pago de cuota") if cuota else "Pago de cuota",
+        "monto": pago.get("monto", 0),
+        "estado": pago.get("estado", "pendiente")
+    })
+    return pago
 
 
 @router.post("/{cuota_id}/pagar/form")
-def pagar_mi_cuota_form(
+async def pagar_mi_cuota_form(
     cuota_id: str,
     monto: float = Form(...),
     fecha_pago: date = Form(...),
@@ -109,14 +128,33 @@ def pagar_mi_cuota_form(
     user: dict = Depends(get_current_user),
 ):
     data = _payment_data(cuota_id, user["id"], monto, fecha_pago, metodo, referencia, user["id"], comprobante)
-    return table("pagos_cuotas").upsert(data, on_conflict="cuota_id,vecino_id").execute().data[0]
+    pago = table("pagos_cuotas").upsert(data, on_conflict="cuota_id,vecino_id").execute().data[0]
+    cuota = table("cuotas").select("titulo,monto").eq("id", cuota_id).single().execute().data
+    notif_service = NotificationService()
+    await notif_service.notify_pago(str(user["id"]), {
+        **pago,
+        "concepto": cuota.get("titulo", "Pago de cuota") if cuota else "Pago de cuota",
+        "monto": pago.get("monto", 0),
+        "estado": pago.get("estado", "pendiente")
+    })
+    return pago
 
 
 @router.patch("/pagos/{pago_id}/estado/{estado}")
-def cambiar_estado_pago(pago_id: str, estado: str, user: dict = Depends(require_roles("admin", "tesorero"))):
+async def cambiar_estado_pago(pago_id: str, estado: str, user: dict = Depends(require_roles("admin", "tesorero"))):
     if estado not in {"pendiente", "verificado", "rechazado"}:
         raise HTTPException(status_code=400, detail="Estado de pago invalido")
     data = {"estado": estado}
     if estado == "verificado":
         data.update({"verificado_por": user["id"], "verificado_at": datetime.now(timezone.utc).isoformat()})
-    return table("pagos_cuotas").update(data).eq("id", pago_id).execute().data[0]
+    pago = table("pagos_cuotas").update(data).eq("id", pago_id).execute().data[0]
+    if pago:
+        cuota = table("cuotas").select("titulo,monto").eq("id", pago.get("cuota_id")).single().execute().data
+        notif_service = NotificationService()
+        await notif_service.notify_pago(str(pago["vecino_id"]), {
+            **pago,
+            "concepto": cuota.get("titulo", "Pago de cuota") if cuota else "Pago de cuota",
+            "monto": pago.get("monto", 0),
+            "estado": estado
+        })
+    return pago

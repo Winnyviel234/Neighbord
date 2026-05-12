@@ -3,7 +3,7 @@ import { Link, useParams } from 'react-router-dom';
 import { EmptyState, Spinner } from '../components/common';
 import { dataService, mediaUrl } from '../services/api';
 import { useAuth } from '../context/AuthContext';
-import { ArrowLeft, MessageCircle, Heart } from 'lucide-react';
+import { ArrowLeft, MessageCircle, Heart, Trash2 } from 'lucide-react';
 
 export default function NoticiasPage({ publicView = false }) {
   const { user, hasRole } = useAuth();
@@ -17,7 +17,7 @@ export default function NoticiasPage({ publicView = false }) {
   const [comments, setComments] = useState([]);
   const [newComment, setNewComment] = useState('');
   const [liked, setLiked] = useState(false);
-  const [userComment] = useState({ nombre: 'Tu nombre' });
+  const [loadingComments, setLoadingComments] = useState(false);
 
   const load = () => {
     const request = !publicView && hasRole('admin') ? dataService.noticiasAdmin() : dataService.noticias();
@@ -28,7 +28,7 @@ export default function NoticiasPage({ publicView = false }) {
           const noticia = data.find(n => n.id === id);
           if (noticia) {
             setSelectedNoticia(noticia);
-            generateComments(noticia);
+            loadComments(noticia.id);
           }
         }
       })
@@ -38,56 +38,43 @@ export default function NoticiasPage({ publicView = false }) {
       });
   };
 
-  const generateComments = (noticia) => {
-    const nombres = [
-      'Ana Morales', 'Carlos Rojas', 'María García', 'Juan López', 'Rosa Martínez',
-      'Pedro González', 'Luisa Fernández', 'Diego Rodríguez', 'Sofia Díaz', 'Miguel Torres',
-      'Elena Castro', 'Roberto Sánchez', 'Victoria López', 'Andrés Ruiz', 'Catalina Méndez'
-    ];
-
-    const comentariosBase = [
-      '¡Excelente noticia! Me alegra mucho que la comunidad esté creciendo.',
-      '¿Cuándo será el próximo evento? Me gustaría participar.',
-      'Felicitaciones al equipo organizador. ¡Sigan adelante!',
-      'Espero poder asistir al próximo evento comunitario.',
-      'Gracias por mantener a la comunidad informada. ¡Que sigan los logros!',
-      'Esto es justo lo que necesitábamos en el barrio.',
-      'Muy buen trabajo, sigan con esta energía positiva.',
-      'Me encantaría contribuir en futuros eventos.',
-      'La comunidad se ve cada vez más unida. ¡Qué bueno!',
-      'Importante conocer sobre estas iniciativas vecinales.',
-      'Apoyaré esta iniciativa sin dudarlo.',
-      'Necesitábamos este tipo de conexión en el sector.',
-      'Muchas gracias por el esfuerzo y la dedicación.',
-      'Este es el camino para fortalecer nuestra comunidad.',
-      'Información valiosa para todos nosotros.',
-      'Ojalá se repita este tipo de eventos pronto.',
-      'La organización ha mejorado significativamente.',
-      'Definitivamente, la comunidad lo necesitaba.',
-      'Seguiremos apoyando estas iniciativas comunitarias.',
-      'Gracias por pensar en el bienestar de todos.'
-    ];
-
-    const generatedComments = Array.from({ length: Math.floor(Math.random() * 5) + 3 }, (_, index) => ({
-      id: `${noticia.id}-comment-${index}`,
-      autor: nombres[Math.floor(Math.random() * nombres.length)],
-      comentario: comentariosBase[Math.floor(Math.random() * comentariosBase.length)],
-      fecha: new Date(Date.now() - Math.random() * 7 * 24 * 60 * 60 * 1000).toISOString()
-    }));
-
-    setComments(generatedComments);
+  const loadComments = (noticiaId) => {
+    if (!noticiaId) return;
+    setLoadingComments(true);
+    dataService.getNoticiaComments(noticiaId)
+      .then((data) => setComments(data || []))
+      .catch(() => setComments([]))
+      .finally(() => setLoadingComments(false));
   };
 
-  const handleAddComment = () => {
-    if (!newComment.trim()) return;
-    const comment = {
-      id: Date.now().toString(),
-      autor: userComment.nombre,
-      comentario: newComment,
-      fecha: new Date().toISOString()
-    };
-    setComments([comment, ...comments]);
-    setNewComment('');
+  const handleAddComment = async () => {
+    if (!newComment.trim() || !selectedNoticia) return;
+    try {
+      const created = await dataService.createNoticiaComment(selectedNoticia.id, newComment);
+      if (created) {
+        created.usuarios = { nombre: user?.nombre || 'Tú' };
+        setComments([...comments, created]);
+      }
+      setNewComment('');
+    } catch (e) {
+      console.error('Error al comentar:', e);
+    }
+  };
+
+  const handleDeleteComment = async (commentId) => {
+    if (!window.confirm('Eliminar este comentario?')) return;
+    try {
+      await dataService.deleteNoticiaComment(commentId);
+      setComments(comments.filter(c => c.id !== commentId));
+    } catch (e) {
+      console.error('Error al eliminar:', e);
+    }
+  };
+
+  const canDeleteComment = (comment) => {
+    if (!user) return false;
+    if (hasRole('admin') || hasRole('directiva')) return true;
+    return comment.usuario_id === user.id;
   };
 
   useEffect(() => { load(); }, [id]);
@@ -124,7 +111,6 @@ export default function NoticiasPage({ publicView = false }) {
 
   if (!rows) return <Spinner label="Cargando noticias..." />;
 
-  // Vista de noticia individual
   if (selectedNoticia) {
     return (
       <main className="min-h-screen bg-neighbor-mist p-6">
@@ -159,7 +145,6 @@ export default function NoticiasPage({ publicView = false }) {
                 <p className="text-lg text-slate-700 leading-relaxed whitespace-pre-wrap">{selectedNoticia.contenido || selectedNoticia.resumen}</p>
               </div>
 
-              {/* Like and Share */}
               <div className="flex items-center gap-4 py-6 border-y border-slate-100">
                 <button 
                   onClick={() => setLiked(!liked)}
@@ -174,64 +159,76 @@ export default function NoticiasPage({ publicView = false }) {
                 </div>
               </div>
 
-              {/* Comments Section */}
               <div className="mt-8">
                 <h3 className="text-2xl font-black text-neighbor-navy mb-6">Comentarios ({comments.length})</h3>
                 
-                {/* Add Comment */}
-                <div className="bg-slate-50 rounded-2xl p-6 mb-8">
-                  <h4 className="font-bold text-neighbor-navy mb-4">Comparte tu opinión</h4>
-                  <div className="flex gap-4">
-                    <div className="h-10 w-10 rounded-full bg-gradient-to-br from-neighbor-blue to-neighbor-green flex items-center justify-center text-white text-sm font-bold flex-shrink-0">
-                      {userComment.nombre.charAt(0)}
-                    </div>
-                    <div className="flex-1">
-                      <textarea
-                        value={newComment}
-                        onChange={(e) => setNewComment(e.target.value)}
-                        placeholder="Escribe tu comentario aquí..."
-                        className="w-full p-4 border border-slate-200 rounded-lg text-sm resize-none focus:border-neighbor-blue focus:outline-none"
-                        rows="3"
-                      />
-                      <div className="flex justify-end gap-2 mt-3">
-                        <button
-                          onClick={() => setNewComment('')}
-                          className="px-4 py-2 text-slate-700 text-sm font-semibold rounded-lg hover:bg-slate-200 transition"
-                        >
-                          Cancelar
-                        </button>
-                        <button
-                          onClick={handleAddComment}
-                          disabled={!newComment.trim()}
-                          className="px-6 py-2 bg-neighbor-blue text-white text-sm font-semibold rounded-lg hover:bg-neighbor-green transition disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                          Comentar
-                        </button>
+                {user && (
+                  <div className="bg-slate-50 rounded-2xl p-6 mb-8">
+                    <h4 className="font-bold text-neighbor-navy mb-4">Comparte tu opinión</h4>
+                    <div className="flex gap-4">
+                      <div className="h-10 w-10 rounded-full bg-gradient-to-br from-neighbor-blue to-neighbor-green flex items-center justify-center text-white text-sm font-bold flex-shrink-0">
+                        {(user?.nombre || 'U').charAt(0)}
+                      </div>
+                      <div className="flex-1">
+                        <textarea
+                          value={newComment}
+                          onChange={(e) => setNewComment(e.target.value)}
+                          placeholder="Escribe tu comentario aquí..."
+                          className="w-full p-4 border border-slate-200 rounded-lg text-sm resize-none focus:border-neighbor-blue focus:outline-none"
+                          rows="3"
+                        />
+                        <div className="flex justify-end gap-2 mt-3">
+                          <button
+                            onClick={() => setNewComment('')}
+                            className="px-4 py-2 text-slate-700 text-sm font-semibold rounded-lg hover:bg-slate-200 transition"
+                          >
+                            Cancelar
+                          </button>
+                          <button
+                            onClick={handleAddComment}
+                            disabled={!newComment.trim()}
+                            className="px-6 py-2 bg-neighbor-blue text-white text-sm font-semibold rounded-lg hover:bg-neighbor-green transition disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            Comentar
+                          </button>
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
+                )}
 
-                {/* Comments List */}
                 <div className="space-y-6">
-                  {comments.length > 0 ? comments.map((comment) => (
+                  {loadingComments ? (
+                    <div className="text-center py-8">
+                      <Spinner label="Cargando comentarios..." />
+                    </div>
+                  ) : comments.length > 0 ? comments.map((comment) => (
                     <div key={comment.id} className="flex gap-4">
                       <div className="h-10 w-10 rounded-full bg-gradient-to-br from-neighbor-blue to-neighbor-green flex items-center justify-center text-white text-sm font-bold flex-shrink-0">
-                        {comment.autor.charAt(0)}
+                        {((comment.usuarios?.nombre) || 'U').charAt(0)}
                       </div>
                       <div className="flex-1">
                         <div className="flex items-center gap-2 mb-1">
-                          <span className="font-semibold text-neighbor-navy">{comment.autor}</span>
+                          <span className="font-semibold text-neighbor-navy">{comment.usuarios?.nombre || 'Usuario'}</span>
                           <span className="text-xs text-slate-500">
-                            {new Date(comment.fecha).toLocaleDateString('es-ES', {
+                            {new Date(comment.created_at || comment.fecha || Date.now()).toLocaleDateString('es-ES', {
                               month: 'short',
                               day: 'numeric',
                               hour: '2-digit',
                               minute: '2-digit'
                             })}
                           </span>
+                          {canDeleteComment(comment) && (
+                            <button
+                              onClick={() => handleDeleteComment(comment.id)}
+                              className="ml-auto text-slate-400 hover:text-red-500 transition"
+                              title="Eliminar comentario"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          )}
                         </div>
-                        <p className="text-slate-600 leading-relaxed">{comment.comentario}</p>
+                        <p className="text-slate-600 leading-relaxed">{comment.contenido || comment.comentario}</p>
                       </div>
                     </div>
                   )) : (
@@ -275,7 +272,7 @@ export default function NoticiasPage({ publicView = false }) {
             <article 
               key={row.id} 
               className="card overflow-hidden cursor-pointer hover:shadow-lg hover:border-neighbor-blue/40 transition"
-              onClick={() => setSelectedNoticia(row)}
+              onClick={() => { setSelectedNoticia(row); loadComments(row.id); }}
             >
               {row.imagen_url && (
                 <div className="h-52 w-full overflow-hidden bg-gradient-to-br from-neighbor-mist to-slate-100 md:h-56">

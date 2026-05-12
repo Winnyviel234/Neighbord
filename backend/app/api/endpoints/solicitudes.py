@@ -4,6 +4,7 @@ from app.core.security import get_current_user, require_roles
 from app.core.supabase import table
 from app.schemas.schemas import SolicitudIn
 from app.services.email_service import EmailService
+from app.services.notification_service import NotificationService
 
 router = APIRouter(prefix="/solicitudes", tags=["solicitudes"])
 
@@ -37,18 +38,33 @@ def list_solicitudes(
 
 
 @router.post("")
-def create_solicitud(payload: SolicitudIn, user: dict = Depends(get_current_user)):
+async def create_solicitud(payload: SolicitudIn, user: dict = Depends(get_current_user)):
     data = payload.model_dump()
-    data.update({"usuario_id": user["id"], "estado": "abierta"})
-    return table("solicitudes").insert(data).execute().data[0]
+    data.update({"usuario_id": user["id"], "estado": "pendiente"})
+    created = table("solicitudes").insert(data).execute().data[0]
+    notif_service = NotificationService()
+    await notif_service.notify_solicitud(str(user["id"]), {
+        **created,
+        "titulo": created.get("titulo", ""),
+        "categoria": created.get("categoria", ""),
+        "estado": "pendiente"
+    })
+    return created
 
 
 @router.patch("/{solicitud_id}/estado/{estado}")
-def update_estado(solicitud_id: str, estado: str, user: dict = Depends(require_roles("admin", "directiva"))):
+async def update_estado(solicitud_id: str, estado: str, user: dict = Depends(require_roles("admin", "directiva"))):
     updated = table("solicitudes").update({"estado": estado}).eq("id", solicitud_id).execute().data[0]
     owner = table("usuarios").select("email").eq("id", updated["usuario_id"]).single().execute().data
     if owner and owner.get("email"):
         EmailService().request_status(owner["email"], updated["titulo"], estado)
+    notif_service = NotificationService()
+    await notif_service.notify_solicitud(str(updated["usuario_id"]), {
+        **updated,
+        "titulo": updated.get("titulo", ""),
+        "categoria": updated.get("categoria", ""),
+        "estado": estado
+    })
     return updated
 
 

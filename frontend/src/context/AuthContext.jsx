@@ -27,7 +27,7 @@ function normalizeUser(user) {
   if (!user) return null;
   return {
     ...user,
-    rol: user.rol || user.role_name || user.role || 'vecino'
+    rol: user.role_name || user.rol || user.role || 'vecino'
   };
 }
 

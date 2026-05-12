@@ -121,21 +121,36 @@ class AuthService:
 
     async def request_password_reset(self, data: PasswordResetRequest) -> Dict[str, Any]:
         """Send a one-time password reset link without revealing if the email exists."""
-        generic = {"message": "Si el correo existe, enviaremos un enlace para recuperar la contrasena."}
-        user = await self.repo.get_by_email(data.email)
-        if not user or not user.get("activo", True):
+        generic = {"message": "Si el correo existe, enviaremos un enlace para recuperar la contraseña."}
+        
+        try:
+            user = await self.repo.get_by_email(data.email)
+            if not user or not user.get("activo", True):
+                return generic
+        except Exception:
             return generic
 
-        token = secrets.token_urlsafe(48)
-        token_hash = self._hash_reset_token(token)
-        expires_at = (datetime.now(timezone.utc) + timedelta(minutes=30)).isoformat()
-        await self.repo.create_password_reset_token(str(user["id"]), token_hash, expires_at)
+        try:
+            token = secrets.token_urlsafe(48)
+            token_hash = self._hash_reset_token(token)
+            expires_at = (datetime.now(timezone.utc) + timedelta(minutes=30)).isoformat()
+            
+            try:
+                await self.repo.create_password_reset_token(str(user["id"]), token_hash, expires_at)
+            except Exception:
+                return generic
 
-        reset_url = f"{settings.frontend_url.rstrip('/')}/restablecer-contrasena?token={quote(token)}"
-        email_result = self.email_service.password_reset(user["email"], user.get("nombre") or "vecino", reset_url)
-        if not email_result.get("sent"):
-            return {**generic, "email_configured": False, "detail": email_result.get("detail")}
-        return generic
+            try:
+                reset_url = f"{settings.frontend_url.rstrip('/')}/restablecer-contraseña?token={quote(token)}"
+                email_result = self.email_service.password_reset(user["email"], user.get("nombre") or "vecino", reset_url)
+                if not email_result.get("sent"):
+                    return {**generic, "email_configured": False, "detail": email_result.get("detail")}
+            except Exception:
+                pass
+                
+            return generic
+        except Exception:
+            return generic
 
     async def reset_password(self, data: PasswordResetConfirmRequest) -> Dict[str, Any]:
         token_hash = self._hash_reset_token(data.token)

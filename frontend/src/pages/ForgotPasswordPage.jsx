@@ -31,8 +31,8 @@ export default function ForgotPasswordPage() {
       <form onSubmit={onSubmit} className="card w-full max-w-md p-7">
         <div className="text-center">
           <img src="/neighbor-logo.png" alt="Neighbord" className="mx-auto h-20 w-20 object-contain" />
-          <h1 className="mt-3 text-2xl font-black text-neighbor-navy">Recuperar contrasena</h1>
-          <p className="mt-2 text-sm font-semibold text-slate-500">Te enviaremos un enlace seguro que vence en 30 minutos.</p>
+           <h1 className="mt-3 text-2xl font-black text-neighbor-navy">Recuperar contraseña</h1>
+           <p className="mt-2 text-sm font-semibold text-slate-500">Te enviaremos un enlace seguro que vence en 30 minutos.</p>
         </div>
         {message && <p className="mt-4 rounded-md bg-green-50 p-3 text-sm font-semibold text-green-700">{message}</p>}
         {error && <p className="mt-4 rounded-md bg-red-50 p-3 text-sm font-semibold text-red-700">{error}</p>}

@@ -4,6 +4,7 @@ from app.core.security import get_current_user, require_roles
 from app.core.supabase import table
 from app.schemas.schemas import PagoIn, TransaccionIn
 from app.services.email_service import EmailService
+from app.services.notification_service import NotificationService
 
 router = APIRouter(prefix="/finanzas", tags=["finanzas"])
 
@@ -14,24 +15,38 @@ def pagos(user: dict = Depends(require_roles("admin", "directiva", "tesorero")))
 
 
 @router.post("/pagos")
-def create_pago(payload: PagoIn, user: dict = Depends(require_roles("admin", "tesorero"))):
+async def create_pago(payload: PagoIn, user: dict = Depends(require_roles("admin", "tesorero"))):
     data = payload.model_dump(mode="json")
     data["registrado_por"] = user["id"]
     pago = table("pagos").insert(data).execute().data[0]
     vecino = table("usuarios").select("email,nombre").eq("id", payload.vecino_id).single().execute().data
     if vecino and vecino.get("email"):
         EmailService().payment_receipt(vecino["email"], payload.concepto, payload.monto)
+    notif_service = NotificationService()
+    await notif_service.notify_pago(str(payload.vecino_id), {
+        **pago,
+        "concepto": payload.concepto,
+        "monto": payload.monto,
+        "estado": pago.get("estado", "completado")
+    })
     return pago
 
 
 @router.post("/pagos/solicitud")
-def create_pago_solicitud(payload: PagoIn, user: dict = Depends(get_current_user)):
+async def create_pago_solicitud(payload: PagoIn, user: dict = Depends(get_current_user)):
     data = payload.model_dump(mode="json")
     data["registrado_por"] = user["id"]
     pago = table("pagos").insert(data).execute().data[0]
     vecino = table("usuarios").select("email,nombre").eq("id", payload.vecino_id).single().execute().data
     if vecino and vecino.get("email"):
         EmailService().payment_receipt(vecino["email"], payload.concepto, payload.monto)
+    notif_service = NotificationService()
+    await notif_service.notify_pago(str(payload.vecino_id), {
+        **pago,
+        "concepto": payload.concepto,
+        "monto": payload.monto,
+        "estado": pago.get("estado", "pendiente")
+    })
     return pago
 
 

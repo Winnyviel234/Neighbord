@@ -292,37 +292,6 @@ export default function LandingPage() {
     return `M ${cx} ${cy} L ${startX} ${startY} A ${radius} ${radius} 0 ${largeArcFlag} 1 ${endX} ${endY} Z`;
   };
 
-  const loadLanding = async () => {
-    setLoading(true);
-    try {
-      const payload = await dataService.landing();
-      const votaciones = payload?.votaciones || [];
-      const hasRealData = ['comunicados', 'noticias', 'votaciones', 'pagos', 'reuniones', 'directiva']
-        .some((key) => Array.isArray(payload?.[key]) && payload[key].some((item) => !isDemoId(item?.id)));
-      setIsRealData(hasRealData);
-      const votedOptions = {};
-      votaciones.forEach((v) => {
-        if (v.mi_voto) {
-          votedOptions[v.id] = v.mi_voto;
-        }
-      });
-      setSelectedOptions(votedOptions);
-      setData({
-        comunicados: payload?.comunicados?.length ? payload.comunicados : demoLanding.comunicados,
-        noticias: payload?.noticias?.length ? payload.noticias : demoLanding.noticias,
-        votaciones,
-        pagos: payload?.pagos || [],
-        reuniones: payload?.reuniones || [],
-        directiva: payload?.directiva || []
-      });
-    } catch {
-      setData(withDemo(empty));
-      setIsRealData(false);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   useEffect(() => {
     loadLanding();
   }, []);

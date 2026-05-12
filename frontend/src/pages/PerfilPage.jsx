@@ -28,17 +28,17 @@ export default function PerfilPage() {
     }
   }
 
-  async function savePassword(event) {
-    event.preventDefault();
-    try {
-      await changePassword(password);
-      setPassword({ password_actual: '', password_nueva: '' });
-      setMessage('Contrasena actualizada.');
-      setError('');
-    } catch (err) {
-      setError(err.response?.data?.detail || 'No se pudo cambiar la contrasena.');
-    }
-  }
+   async function savePassword(event) {
+     event.preventDefault();
+     try {
+       await changePassword(password);
+       setPassword({ password_actual: '', password_nueva: '' });
+       setMessage('Contraseña actualizada.');
+       setError('');
+     } catch (err) {
+       setError(err.response?.data?.detail || 'No se pudo cambiar la contraseña.');
+     }
+   }
 
   if (!history) return <Spinner label="Cargando perfil..." />;
 
